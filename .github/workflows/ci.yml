@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["phase-*"]
+
+# A newer push to the same pull request replaces the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  # The commit that /api/info reports. On pull requests the checkout is a merge
+  # commit nobody has seen, so name the head commit instead.
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  web:
+    name: Web (typecheck, lint, unit tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: Typecheck, lint, unit tests, build
+        run: node scripts/check.mjs web
+
+  server:
+    name: Server (format, clippy, tests, generated types)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the Rust toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Format check, clippy with warnings as errors, tests
+        run: node scripts/check.mjs server
+      - name: Generated types are up to date
+        run: node scripts/check.mjs types
+
+  style-guard:
+    name: Style guard (no !important, no Tailwind important modifier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Guard tests, then the guard itself
+        run: node scripts/check.mjs style
+
+  build:
+    name: Release binary (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x86_64, static
+            os: ubuntu-latest
+          - label: Windows x86_64
+            os: windows-latest
+          - label: macOS Apple Silicon
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install the Rust toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+      - name: Install the musl C compiler (static Linux build)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - run: npm ci
+        working-directory: web
+      - name: Build the release binary
+        id: build
+        run: BUILD_COMMIT="${HEAD_SHA::7}" node scripts/build.mjs
+      - name: Smoke-test the binary
+        run: node scripts/smoke.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.build.outputs.artifact }}
+          path: ${{ steps.build.outputs.dir }}
+          if-no-files-found: error
+
+  e2e:
+    name: End-to-end tests (Linux release binary)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Download the Linux binary built by this run
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*-linux-x86_64"
+          path: e2e-binary
+          merge-multiple: true
+      - run: npm ci
+        working-directory: web
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: web
+      - name: Run Playwright against the binary
+        run: |
+          binary="$(find e2e-binary -type f | head -n 1)"
+          chmod +x "$binary"
+          node scripts/e2e.mjs --binary "$binary"
+      - name: Keep the Playwright report when tests fail
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/phase-')
+    needs: [web, server, style-guard, build, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download the three binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: Name each binary after its platform
+        run: |
+          mkdir release
+          for dir in artifacts/*/; do
+            artifact="$(basename "$dir")"
+            file="$(find "$dir" -type f | head -n 1)"
+            case "$file" in
+              *.exe) cp "$file" "release/$artifact.exe" ;;
+              *) cp "$file" "release/$artifact" ;;
+            esac
+          done
+          ls -l release
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" release/*
+          --repo "$GITHUB_REPOSITORY"
+          --title "$GITHUB_REF_NAME"
+          --generate-notes
+          --verify-tag
