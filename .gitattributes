@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# Compared byte for byte (generated-types check) or checksummed (sqlx
+# migrations), so they must never be checked out with CRLF.
+web/src/generated/** text eol=lf
+crates/server/migrations/*.sql text eol=lf
+
+*.woff2 binary
+*.png binary

@@ -1,0 +1,23 @@
+# Rust
+/target
+
+# Release output of scripts/build.mjs
+/dist
+
+# Frontend
+node_modules
+/web/dist
+/web/playwright-report
+/web/test-results
+*.tsbuildinfo
+*.local
+
+# Data folders the binary creates next to itself
+*-data/
+
+# Editors and OS
+.idea
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.log

@@ -1,0 +1,32 @@
+[package]
+name = "server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# The binary name lives here and nowhere else: the code reads it from
+# `CARGO_BIN_NAME` and derives the data directory and database file from it.
+[[bin]]
+name = "shesha2"
+path = "src/main.rs"
+
+[dependencies]
+contracts = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+mime_guess = { workspace = true }
+percent-encoding = { workspace = true }
+rust-embed = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+http-body-util = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tower = { workspace = true }
