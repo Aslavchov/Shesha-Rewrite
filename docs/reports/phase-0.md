@@ -1,6 +1,6 @@
 # Phase 0 report
 
-> Running report. Last update: 12 Nov 2026, all deliverables built and passing locally; pull request being opened, CI results to follow in the last section.
+> Running report. Last update: 12 Nov 2026. Phase complete: every deliverable is built, the pull request is open and CI is green.
 
 ## Status
 
@@ -8,7 +8,7 @@
 - [x] 5.2 Shared types
 - [x] 5.3 Frontend
 - [x] 5.4 Test IDs
-- [x] 5.5 Build and CI (workflow written; see "CI and end-to-end results" for the run)
+- [x] 5.5 Build and CI
 - [x] 5.6 Documentation
 
 ## What was built
@@ -159,8 +159,31 @@ The static Linux build needs `musl-tools`. Downloading and running a CI binary i
 | Release build (static musl, 5.4 MB) and smoke test | Pass; address printed in 5 ms |
 | Playwright, 37 tests against the release binary | Pass, three runs in a row |
 
-Not verifiable locally: the Windows and macOS builds, and the workflow itself. Those are proven by the CI run below.
+The Windows and macOS builds and the workflow itself could not be run locally; the CI run below covers them.
 
 **GitHub Actions**
 
-_Pending: the pull request is being opened._
+Pull request: [Aslavchov/Shesha-Rewrite#1](https://github.com/Aslavchov/Shesha-Rewrite/pull/1). First run: [run 43307279333](https://github.com/Aslavchov/Shesha-Rewrite/actions/runs/43307279333), on commit `1ccb90e`. It passed on the first attempt, with no re-runs and no fixes needed.
+
+| Job | Result | Time |
+| --- | --- | --- |
+| Web (typecheck, lint, unit tests, build) | Pass | 28 s |
+| Server (format, clippy, tests, generated types) | Pass | 1 min 7 s |
+| Style guard | Pass | 7 s |
+| Release binary, Linux x86_64 static (build and smoke test) | Pass | 3 min 17 s |
+| Release binary, Windows x86_64 (build and smoke test) | Pass | 3 min 50 s |
+| Release binary, macOS Apple Silicon (build and smoke test) | Pass | 3 min 4 s |
+| End-to-end tests against the Linux binary | Pass, 37 of 37 | 1 min |
+| GitHub Release | Skipped (runs only on `phase-*` tags) | |
+
+Artifacts on that run, each a zip holding the binary:
+
+| Artifact | Download size |
+| --- | --- |
+| `shesha2-linux-x86_64` | 2.7 MB |
+| `shesha2-windows-x86_64` | 2.6 MB |
+| `shesha2-macos-arm64` | 2.4 MB |
+
+Not exercised yet: the GitHub Release job. It only runs when a `phase-*` tag is pushed, so its first real run will be the first such tag.
+
+Still open for the phase to be accepted: C0-13 (visual quality) and the manual pass of C0-1 to C0-12 in Chrome against a downloaded binary.
