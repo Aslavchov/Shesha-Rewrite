@@ -1,0 +1,7 @@
+dist
+node_modules
+package-lock.json
+playwright-report
+test-results
+# ts-rs output: formatted by its generator, never by hand.
+src/generated
