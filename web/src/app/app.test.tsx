@@ -13,8 +13,11 @@ import { routes } from "./routes"
 
 const INFO = { name: APP_NAME, version: "9.8.7", commit: "abc1234" }
 
+/** Answers /api/info with `handler`. The Forms page gets an empty list. */
 function stubInfo(handler: () => Response | Promise<Response>) {
-  const fetchMock = vi.fn(async () => handler())
+  const fetchMock = vi.fn(async (url: string) =>
+    url.startsWith("/api/forms") ? new Response(JSON.stringify({ forms: [] })) : handler(),
+  )
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -71,7 +74,6 @@ describe("app shell", () => {
   })
 
   it.each([
-    ["forms", "Arrives in Phase 1."],
     ["designer", "Arrives in Phase 2."],
     ["entities", "Arrives in Phase 5."],
     ["themes", "Arrives in Phase 4."],
@@ -84,6 +86,15 @@ describe("app shell", () => {
     expect(screen.getByTestId("empty-state-description")).toHaveTextContent(
       `${page?.upcoming?.summary} ${arrival}`,
     )
+  })
+
+  it("Forms is a built page, not an upcoming one", async () => {
+    stubInfo(infoOk)
+    renderAt("/forms")
+
+    expect(UPCOMING_PAGES.map((page) => page.id)).not.toContain("forms")
+    expect(await screen.findByTestId("forms-empty")).toBeInTheDocument()
+    expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument()
   })
 
   it("navigates when a sidebar item is clicked", async () => {

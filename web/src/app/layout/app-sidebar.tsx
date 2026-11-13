@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar"
 import { APP_NAME } from "@/generated"
 
-import { NAV_PAGES } from "../pages"
+import { HOME_PAGE, NAV_PAGES } from "../pages"
 import { BrandMark } from "./brand-mark"
 
 export function AppSidebar() {
@@ -35,7 +35,8 @@ export function AppSidebar() {
                   render={
                     <NavLink
                       to={page.path}
-                      end
+                      // Home matches only itself; a section stays current on its sub-pages.
+                      end={page.path === HOME_PAGE.path}
                       data-testid={`nav-${page.id}`}
                       // On small screens the sidebar is an overlay: close it on navigation.
                       onClick={() => setOpenMobile(false)}

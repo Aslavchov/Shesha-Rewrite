@@ -53,7 +53,7 @@ function controlProps({ field, required, helpText }: SharedProps): ControlProps 
 
 function Label({ field, label, required, slots }: SharedProps) {
   return (
-    <FieldLabel htmlFor={field.id} {...slots.label}>
+    <FieldLabel htmlFor={field.id} className="gap-0.5" {...slots.label}>
       {label}
       {required ? (
         // Hidden from assistive technology: the control says aria-required.
