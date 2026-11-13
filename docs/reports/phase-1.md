@@ -1,6 +1,6 @@
 # Phase 1 report
 
-> Last update: 13 Nov 2026. Every deliverable is built, every check that can run locally passes, and the pull request is open. The CI result for the pull request is at the end of this report.
+> Last update: 13 Nov 2026. Phase complete: every deliverable is built, the pull request is open, and CI is green on it. The CI results are at the end of this report.
 
 ## Status
 
@@ -198,6 +198,21 @@ The cause was the shutdown race described above, which has been in the server si
 | Before the fix | 121 passed, 79 failed |
 | After the fix | 200 passed |
 
-The result of the run on the commit with the fix is on the pull request's Checks tab. Per CLAUDE.md, the phase is not reported done unless the run on the current head is green.
+Second run: [run 43413843361](https://github.com/Aslavchov/Shesha-Rewrite/actions/runs/43413843361), on commit `a685071`, which carries the fix. Every job passed, with no re-runs.
+
+| Job | Result | Time |
+| --- | --- | --- |
+| Web (typecheck, lint, unit tests, build) | Pass | 58 s |
+| Server (format, clippy, tests, generated types) | Pass | 41 s |
+| Style guard | Pass | 7 s |
+| Release binary, Linux x86_64 static (build and smoke test) | Pass | 55 s |
+| Release binary, Windows x86_64 (build and smoke test) | Pass | 2 min 8 s |
+| Release binary, macOS Apple Silicon (build and smoke test) | Pass | 42 s |
+| End-to-end tests against the Linux binary | Pass, 72 of 72 | 1 min 5 s |
+| GitHub Release | Skipped (runs only on `phase-*` tags) | |
+
+The Windows job also confirms the Windows half of the shutdown fix, which could not be compiled locally.
+
+**Later pushes.** The commit that added this table changes only this report. Every push runs the same workflow; the result for the current head is on the pull request's Checks tab. Per CLAUDE.md, the phase is not reported done unless that run is green.
 
 Still open for the phase to be accepted: the manual pass of the checks in section 13 in Chrome, C1-13 and C1-20 by eye, and a decision on deviation 9.
