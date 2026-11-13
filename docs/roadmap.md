@@ -5,8 +5,8 @@ Shesha 2.0 v1 is built in eight phases. Each phase has a spec in `docs/specs/` a
 | Phase | Name | Status |
 | --- | --- | --- |
 | 0 | Foundations | Built ([spec](specs/phase-0.md), [report](reports/phase-0.md)) |
-| 1 | Form schema and runtime renderer | Next |
-| 2 | Designer canvas | |
+| 1 | Form schema and runtime renderer | Built ([spec](specs/phase-1.md), [report](reports/phase-1.md)) |
+| 2 | Designer canvas | Next |
 | 3 | Properties panel and style slots | |
 | 4 | Theme system | |
 | 5 | Entities, binding and CRUD | |
@@ -15,12 +15,12 @@ Shesha 2.0 v1 is built in eight phases. Each phase has a spec in `docs/specs/` a
 
 ## Where each page of the app shell arrives
 
-The shell built in Phase 0 has a placeholder for every page. Each placeholder names the phase that builds it; `web/src/app/pages.ts` holds those numbers and must match this table.
+The shell built in Phase 0 has a placeholder for every page that is not built yet. Each placeholder names the phase that builds it; `web/src/app/pages.ts` holds those numbers and must match this table.
 
 | Page | Arrives in |
 | --- | --- |
 | Home | Phase 0 (built) |
-| Forms | Phase 1 |
+| Forms | Phase 1 (built) |
 | Designer | Phase 2 |
 | Themes | Phase 4 |
 | Entities | Phase 5 |

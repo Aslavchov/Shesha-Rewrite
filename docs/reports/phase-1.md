@@ -1,6 +1,6 @@
 # Phase 1 report
 
-> Running report. Last update: 13 Nov 2026. In progress: the design ADRs are written; code has not started.
+> Running report. Last update: 13 Nov 2026. In progress: contracts, server, runtime, Text field and Forms pages are done; the other nine components are being built.
 
 ## Status
 
@@ -20,13 +20,14 @@ Build order, per the spec: contracts → server → renderer → Text field end 
 | Step | State |
 | --- | --- |
 | ADRs 0003 to 0007 | Written |
-| `crates/contracts`: document, style and API types | Not started |
-| Server: migration, validation, `/api/forms`, demo seed | Not started |
-| `web/src/forms/runtime`: settings, rules, styles, store, renderer | Not started |
-| Text field with tests | Not started |
-| Other nine components | Not started |
-| Forms pages | Not started |
-| End-to-end tests C1-1 to C1-19 | Not started |
+| `crates/contracts`: document, style and API types | Done; generated TypeScript committed |
+| Server: migration, validation, `/api/forms`, demo seed | Done; `cargo test` green |
+| `web/src/forms/runtime`: settings, rules, styles, store, renderer | Done, with unit tests (including C1-16 resilience and C1-17 render isolation) |
+| shadcn/ui Field, Label, Textarea, Select, Checkbox, Switch, Calendar, Popover, Input Group | Added with the CLI and moved onto tokens |
+| Text field with tests | Done |
+| Forms pages (`/forms`, `/forms/<id>`) | Done, with unit tests |
+| Other nine components | In progress: four subagents, one per group of folders. They must not touch `runtime/`, `parts/` or `registry.ts`; the registry lines are added afterwards |
+| End-to-end tests C1-1 to C1-19 | `forms-api.spec.ts` (C1-14, C1-15) written; the UI checks follow once the nine components exist |
 
 ## What was built
 
