@@ -19,6 +19,9 @@
 
   html {
     @apply font-sans antialiased;
+    /* Whatever is scrolled into view (a focused field, a link target) stops
+       below the sticky header, not underneath it. */
+    scroll-padding-top: calc(var(--sys-size-header) + var(--sys-space-md));
   }
 
   body {
@@ -37,6 +40,20 @@
   :focus-visible {
     outline: var(--sys-focus-ring-width) solid var(--ring);
     outline-offset: var(--sys-focus-ring-offset);
+  }
+
+  /*
+   * A control made of several parts (an input with a button inside its
+   * border) shows the same ring around the whole control, not around the
+   * borderless input inside it.
+   */
+  [data-slot="input-group"]:has([data-slot="input-group-control"]:focus-visible) {
+    outline: var(--sys-focus-ring-width) solid var(--ring);
+    outline-offset: 0;
+  }
+
+  [data-slot="input-group-control"]:focus-visible {
+    outline: none;
   }
 
   button:not(:disabled),

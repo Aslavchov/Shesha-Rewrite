@@ -29,15 +29,18 @@ export type AppPage = {
 
 export const HOME_PAGE: AppPage = { id: "home", path: "/", title: "Home", icon: HomeIcon }
 
+/** Built in Phase 1. Each form opens at `formPath(id)`. */
+export const FORMS_PAGE: AppPage = {
+  id: "forms",
+  path: "/forms",
+  title: "Forms",
+  icon: FileTextIcon,
+}
+
+export const formPath = (id: string) => `${FORMS_PAGE.path}/${encodeURIComponent(id)}`
+
 /* When each page arrives follows docs/roadmap.md; keep the two in step. */
 export const UPCOMING_PAGES: AppPage[] = [
-  {
-    id: "forms",
-    path: "/forms",
-    title: "Forms",
-    icon: FileTextIcon,
-    upcoming: { summary: "Every form in this app, ready to open, preview and edit.", arrives: 1 },
-  },
   {
     id: "designer",
     path: "/designer",
@@ -72,7 +75,7 @@ export const UPCOMING_PAGES: AppPage[] = [
 ]
 
 /** Sidebar order. */
-export const NAV_PAGES: AppPage[] = [HOME_PAGE, ...UPCOMING_PAGES]
+export const NAV_PAGES: AppPage[] = [HOME_PAGE, FORMS_PAGE, ...UPCOMING_PAGES]
 
 /** The closing sentence of an empty state: when the page arrives. */
 export function arrivalText(arrives: number | "after-v1"): string {

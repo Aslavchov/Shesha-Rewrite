@@ -51,44 +51,90 @@ fn is_port_taken(error: &io::Error) -> bool {
     )
 }
 
-/// Serves until Ctrl+C (or SIGTERM), then lets in-flight requests finish.
-pub async fn run(listener: TcpListener, app: Router) -> io::Result<()> {
+/// Serves until `shutdown` hears Ctrl+C (or SIGTERM), then lets in-flight
+/// requests finish.
+pub async fn run(listener: TcpListener, app: Router, shutdown: ShutdownSignal) -> io::Result<()> {
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown.received())
         .await
 }
 
-async fn shutdown_signal() {
-    // If a handler cannot be installed, never resolve: stopping the server
-    // because we cannot listen for "stop" would be the wrong way round.
-    let ctrl_c = async {
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            tracing::warn!("cannot listen for Ctrl+C: {e}");
-            std::future::pending::<()>().await;
-        }
-    };
-
+/// The request to stop: Ctrl+C, or SIGTERM on Unix.
+///
+/// The handlers are installed when this is created, not when it is first
+/// awaited. Create it before announcing the address: a Ctrl+C that arrives
+/// between "the address was printed" and "the server is serving" must still
+/// be a clean shutdown, not the operating system's default of killing the
+/// process.
+pub struct ShutdownSignal {
     #[cfg(unix)]
-    let terminate = async {
-        use tokio::signal::unix::{SignalKind, signal};
-        match signal(SignalKind::terminate()) {
-            Ok(mut stream) => {
-                stream.recv().await;
-            }
-            Err(e) => {
-                tracing::warn!("cannot listen for SIGTERM: {e}");
-                std::future::pending::<()>().await;
+    interrupt: Option<tokio::signal::unix::Signal>,
+    #[cfg(unix)]
+    terminate: Option<tokio::signal::unix::Signal>,
+    #[cfg(windows)]
+    ctrl_c: Option<tokio::signal::windows::CtrlC>,
+}
+
+impl ShutdownSignal {
+    /// Installs the handlers. If one cannot be installed, that signal is
+    /// never heard: stopping the server because we cannot listen for "stop"
+    /// would be the wrong way round.
+    pub fn install() -> Self {
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{SignalKind, signal};
+            let listen = |kind: SignalKind, name: &str| {
+                signal(kind)
+                    .inspect_err(|e| tracing::warn!("cannot listen for {name}: {e}"))
+                    .ok()
+            };
+            Self {
+                interrupt: listen(SignalKind::interrupt(), "Ctrl+C"),
+                terminate: listen(SignalKind::terminate(), "SIGTERM"),
             }
         }
-    };
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        () = ctrl_c => {}
-        () = terminate => {}
+        #[cfg(windows)]
+        {
+            Self {
+                ctrl_c: tokio::signal::windows::ctrl_c()
+                    .inspect_err(|e| tracing::warn!("cannot listen for Ctrl+C: {e}"))
+                    .ok(),
+            }
+        }
     }
-    tracing::info!("shutting down");
+
+    /// Resolves when the process is asked to stop.
+    #[cfg(unix)]
+    async fn received(mut self) {
+        tokio::select! {
+            () = heard(&mut self.interrupt) => {}
+            () = heard(&mut self.terminate) => {}
+        }
+        tracing::info!("shutting down");
+    }
+
+    /// Resolves when the process is asked to stop.
+    #[cfg(windows)]
+    async fn received(mut self) {
+        match &mut self.ctrl_c {
+            Some(ctrl_c) => {
+                ctrl_c.recv().await;
+            }
+            None => std::future::pending::<()>().await,
+        }
+        tracing::info!("shutting down");
+    }
+}
+
+/// Waits for a signal on `stream`; forever if its handler was not installed.
+#[cfg(unix)]
+async fn heard(stream: &mut Option<tokio::signal::unix::Signal>) {
+    match stream {
+        Some(stream) => {
+            stream.recv().await;
+        }
+        None => std::future::pending::<()>().await,
+    }
 }
 
 #[cfg(test)]

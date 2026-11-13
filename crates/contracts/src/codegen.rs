@@ -10,7 +10,12 @@ use std::{fs, io};
 
 use ts_rs::{Config, TS};
 
-use crate::{ApiError, ApiErrorBody, AppInfo, DbStatus, HealthResponse, HealthStatus};
+use crate::forms::SettingsTs;
+use crate::{
+    ApiError, ApiErrorBody, AppInfo, ColorToken, ColorValue, ComponentInstance, CreateFormRequest,
+    DbStatus, ErrorDetail, FontWeight, FormDocument, FormList, FormRecord, FormSummary,
+    HealthResponse, HealthStatus, Radius, SlotStyle, Space, UpdateFormRequest,
+};
 
 /// The one command that regenerates the files. Named in every file header.
 pub const COMMAND: &str = "cargo run -p contracts --bin generate-types";
@@ -36,12 +41,28 @@ pub fn render() -> Files {
     add_type::<ApiError>(&cfg, &mut types);
     add_type::<ApiErrorBody>(&cfg, &mut types);
     add_type::<AppInfo>(&cfg, &mut types);
+    add_type::<ColorToken>(&cfg, &mut types);
+    add_type::<ColorValue>(&cfg, &mut types);
+    add_type::<ComponentInstance>(&cfg, &mut types);
+    add_type::<CreateFormRequest>(&cfg, &mut types);
     add_type::<DbStatus>(&cfg, &mut types);
+    add_type::<ErrorDetail>(&cfg, &mut types);
+    add_type::<FontWeight>(&cfg, &mut types);
+    add_type::<FormDocument>(&cfg, &mut types);
+    add_type::<FormList>(&cfg, &mut types);
+    add_type::<FormRecord>(&cfg, &mut types);
+    add_type::<FormSummary>(&cfg, &mut types);
     add_type::<HealthResponse>(&cfg, &mut types);
     add_type::<HealthStatus>(&cfg, &mut types);
+    add_type::<Radius>(&cfg, &mut types);
+    add_type::<SettingsTs>(&cfg, &mut types);
+    add_type::<SlotStyle>(&cfg, &mut types);
+    add_type::<Space>(&cfg, &mut types);
+    add_type::<UpdateFormRequest>(&cfg, &mut types);
 
     let mut barrel = header();
     barrel.push_str("export { APP_NAME } from \"./app\";\n");
+    barrel.push_str("export { FORM_FORMAT_VERSION } from \"./form\";\n");
     for name in types.keys() {
         barrel.push_str(&format!("export type {{ {name} }} from \"./{name}\";\n"));
     }
@@ -58,6 +79,14 @@ pub fn render() -> Files {
             "{}export const APP_NAME = {:?};\n",
             header(),
             crate::APP_NAME
+        ),
+    );
+    files.insert(
+        format!("form.{EXTENSION}"),
+        format!(
+            "{}export const FORM_FORMAT_VERSION = {};\n",
+            header(),
+            crate::FORM_FORMAT_VERSION
         ),
     );
     files.insert(format!("index.{EXTENSION}"), barrel);

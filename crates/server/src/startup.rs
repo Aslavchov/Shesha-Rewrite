@@ -13,7 +13,7 @@ use crate::assets::EmbeddedAssets;
 use crate::cli::{self, Cli};
 use crate::config::{self, Settings};
 use crate::router::{AppState, router};
-use crate::serve::{self, BindError};
+use crate::serve::{self, BindError, ShutdownSignal};
 use crate::{build_info, db};
 
 #[derive(Debug, thiserror::Error)]
@@ -81,6 +81,10 @@ async fn start(cli: Cli, bin_name: &str) -> Result<(), StartupError> {
         })?
         .port();
 
+    // Before the address is announced: whoever reads it may press Ctrl+C at
+    // once, and that must already be a clean shutdown.
+    let shutdown = ShutdownSignal::install();
+
     announce(port);
     tracing::info!(
         version = build_info::VERSION,
@@ -94,7 +98,7 @@ async fn start(cli: Cli, bin_name: &str) -> Result<(), StartupError> {
         pool: pool.clone(),
         assets: Arc::new(EmbeddedAssets),
     };
-    let served = serve::run(listener, router(state)).await;
+    let served = serve::run(listener, router(state), shutdown).await;
     pool.close().await;
     served.map_err(StartupError::Serve)?;
 

@@ -44,11 +44,14 @@ test.describe("C0-2 Shell loads clean", () => {
     }
   })
 
-  test("every page except Home has an empty state saying what is coming and when", async ({
+  test("every page that is not built yet has an empty state saying what is coming and when", async ({
     page,
   }) => {
-    await page.goto("/")
-    await expect(page.getByTestId("empty-state")).toHaveCount(0)
+    for (const built of NAV.filter((item) => item.arrival === null)) {
+      await page.goto(built.path)
+      await expect(page.getByTestId("page-title")).toHaveText(built.title)
+      await expect(page.getByTestId("empty-state")).toHaveCount(0)
+    }
 
     for (const item of NAV) {
       if (item.arrival === null) continue

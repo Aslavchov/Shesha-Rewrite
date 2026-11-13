@@ -44,13 +44,23 @@ export { expect }
 
 /**
  * The pages reachable from the sidebar, in order. `arrival` is how the page's
- * empty state says when it will be built (docs/roadmap.md); Home has none.
+ * empty state says when it will be built (docs/roadmap.md); pages that are
+ * built (Home, and Forms since Phase 1) have none.
  */
 export const NAV = [
   { id: "home", path: "/", title: "Home", arrival: null },
-  { id: "forms", path: "/forms", title: "Forms", arrival: "Arrives in Phase 1." },
+  { id: "forms", path: "/forms", title: "Forms", arrival: null },
   { id: "designer", path: "/designer", title: "Designer", arrival: "Arrives in Phase 2." },
   { id: "entities", path: "/entities", title: "Entities", arrival: "Arrives in Phase 5." },
   { id: "themes", path: "/themes", title: "Themes", arrival: "Arrives in Phase 4." },
   { id: "settings", path: "/settings", title: "Settings", arrival: "Arrives after v1." },
 ] as const
+
+/** The form `--demo` seeds (spec section 10). Its id is fixed. */
+export const DEMO_FORM = {
+  id: "person-details",
+  path: "/forms/person-details",
+  name: "Person details",
+  description:
+    "Demo form covering every Phase 1 component. The Email label is blue on purpose: it shows a style override.",
+} as const

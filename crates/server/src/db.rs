@@ -10,6 +10,8 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
+use crate::forms;
+
 pub static MIGRATOR: Migrator = sqlx::migrate!();
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -58,10 +60,9 @@ pub async fn is_reachable(pool: &SqlitePool) -> bool {
     }
 }
 
-/// Demo data for `--demo`. Phase 0 has none: the seed state is exactly what
-/// the migrations create. Later phases insert their demo rows here.
-async fn seed(_pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    Ok(())
+/// Demo data for `--demo`: what each phase adds on top of the migrations.
+async fn seed(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    forms::seed::insert(pool).await
 }
 
 /// Removes the database file and the write-ahead-log files SQLite keeps
