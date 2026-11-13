@@ -1,7 +1,7 @@
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
 import { Page } from "../layout/page"
-import type { AppPage } from "../pages"
+import { type AppPage, arrivalText } from "../pages"
 
 /** A page that is not built yet: its title plus one line on what is coming and when. */
 export function UpcomingPage({ page }: { page: AppPage }) {
@@ -15,7 +15,7 @@ export function UpcomingPage({ page }: { page: AppPage }) {
           <EmptyTitle>Nothing here yet</EmptyTitle>
           {page.upcoming ? (
             <EmptyDescription data-testid="empty-state-description">
-              {page.upcoming.summary} Arrives in Phase {page.upcoming.phase}.
+              {page.upcoming.summary} {arrivalText(page.upcoming.arrives)}
             </EmptyDescription>
           ) : null}
         </EmptyHeader>

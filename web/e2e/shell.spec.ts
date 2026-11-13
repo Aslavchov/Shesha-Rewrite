@@ -44,18 +44,21 @@ test.describe("C0-2 Shell loads clean", () => {
     }
   })
 
-  test("every page except Home has an empty state that names the phase bringing it", async ({
+  test("every page except Home has an empty state saying what is coming and when", async ({
     page,
   }) => {
     await page.goto("/")
     await expect(page.getByTestId("empty-state")).toHaveCount(0)
 
-    for (const item of NAV.filter((entry) => entry.id !== "home")) {
+    for (const item of NAV) {
+      if (item.arrival === null) continue
       await page.goto(item.path)
 
       await expect(page.getByTestId("empty-state")).toBeVisible()
-      await expect(page.getByTestId("empty-state-description")).toHaveText(
-        /\S.+ Arrives in Phase \d+\.$/,
+      const description = page.getByTestId("empty-state-description")
+      // One line: what the page will hold, then when it arrives.
+      await expect(description).toHaveText(
+        new RegExp(`^\\S.+\\. ${item.arrival.replace(".", "\\.")}$`),
       )
     }
   })

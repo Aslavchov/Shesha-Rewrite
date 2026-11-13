@@ -1,6 +1,6 @@
 # Phase 0 report
 
-> Running report. Last update: 12 Nov 2026. Phase complete: every deliverable is built, the pull request is open and CI is green.
+> Running report. Last update: 13 Nov 2026. Phase complete: every deliverable is built and the pull request is open. The four open decisions were answered on 13 Nov and are applied (see "Decisions confirmed").
 
 ## Status
 
@@ -35,11 +35,11 @@
 - Shell: skip link, sidebar (`nav`) with the product name and six items, header with the current page title and the light/dark toggle, `main` with one `h1` per page.
 - Below 768px the sidebar is hidden behind a menu button and opens as a modal overlay; it closes on navigation, on Escape and on a click outside.
 - Home shows name, version and commit from `/api/info`, and the "Design tokens" preview card. If the server cannot be reached it shows "Can't reach the server" with Retry; the rest of the page keeps working.
-- Forms, Designer, Entities, Themes and Settings each show an empty state with one line on what is coming and in which phase. Unknown routes show Not Found with a link Home.
+- Forms, Designer, Entities, Themes and Settings each show an empty state with one line on what is coming and when, following [the roadmap](../roadmap.md). Unknown routes show Not Found with a link Home.
 - Theme: light by default, `dark` class on `<html>`, stored in `localStorage`, applied before first paint.
 - Inter is bundled; the app makes no request to any other host.
 
-**Test IDs.** All 23 required IDs exist. Four more were added under the same convention because tests check them: `header-title`, `app-name`, `empty-state`, `empty-state-description`.
+**Test IDs.** All 23 required IDs exist (`token-preview-default` was renamed `token-preview-outline` on 13 Nov, in the spec too). Four more were added under the same convention because tests check them: `header-title`, `app-name`, `empty-state`, `empty-state-description`.
 
 **Build, scripts and CI**
 
@@ -74,24 +74,31 @@ Full detail and reasoning: [ADR 0002](../adr/0002-tokens.md). Every value is in 
 | Dark mode | Background `#080A0E`, cards and sidebar `#15181D`, borders white at 10% |
 | Sidebar | Light neutral-50 panel, 16rem wide; the active item has a neutral highlight and a brand-coloured icon |
 
-Two structural choices worth a look:
+The dark-mode primary was accepted on 13 Nov. Two structural choices worth a look:
 
 - **Tailwind's default colour, type, radius and shadow scales are cleared.** Only token-backed utilities exist, so `bg-red-500` produces nothing.
 - **Two token tiers:** `--ref-*` (palette) and `--sys-*` (decisions). shadcn's variables and the Tailwind theme both point at `--sys-*`.
 
+## Decisions confirmed
+
+These four were open when the pull request went up. The answers came on 13 Nov 2026 and are applied.
+
+| Question | Answer | What changed |
+| --- | --- | --- |
+| Which phase brings each page? | Forms 1, Designer 2, Themes 4, Entities 5. Settings is not in any v1 phase. | Empty states updated; Settings says "Arrives after v1." The full roadmap is now in [`docs/roadmap.md`](../roadmap.md), and `web/src/app/pages.ts` follows it. |
+| Is the neutral preview button shadcn's `outline` variant? | Yes; keep shadcn's variant names. | Test ID renamed `token-preview-default` → `token-preview-outline`; the button is labelled "Outline". Spec (now v1.4), tests and this report updated. |
+| Dark-mode primary `oklch(0.715 0.148 262.4)` ≈ `#70A1FF`? | Accepted. | Nothing. |
+| Home re-checks `/api/info` every 5 seconds? | Accepted. | Nothing. |
+
 ## Deviations from the spec, with reasons
 
-Items 1 and 2 are the ones most likely to need a decision from you.
-
-1. **Phase numbers in the empty states are my assumption.** The spec asks each empty state to name the phase that brings the page, but contains no roadmap. I used Forms 1, Designer 1, Entities 2, Themes 3, Settings 4. They live in one place, `web/src/app/pages.ts`.
-2. **"Default Button" is shadcn's `outline` variant.** In shadcn the variant called `default` is the filled primary one, so "one primary Button, one default Button" cannot both be taken literally. `token-preview-primary` is the filled brand button; `token-preview-default` is the neutral bordered one. I kept shadcn's variant names so components added later behave as their source expects.
-3. **Home re-checks `/api/info` every 5 seconds.** C0-9 says to stop the binary and then click Retry, which needs the error to appear without a reload (a reload cannot work, because the binary also serves the page). The same polling means Home recovers by itself when the server returns.
-4. **`status` is `"error"` when `db` is `"error"`.** The spec gives only the healthy shape and says the unhealthy one has `"db": "error"` and HTTP 503.
-5. **The header title and the `h1` show the same text.** The spec asks for both. The header one is plain text, so each page still has exactly one `h1`.
-6. **The menu button exists only below 768px.** On wider screens the sidebar is always shown and cannot be collapsed, which keeps the Tab order in C0-11 (skip link, navigation, theme toggle).
-7. **CI artifacts are zips.** Each artifact is named `shesha2-<os>-<arch>` as specified and contains the binary (`shesha2` or `shesha2.exe`). Release assets on `phase-*` tags are the bare files, named by platform.
-8. **A missing file under `/assets/` returns `index.html`,** as the spec states for any non-API path. A 404 there would be easier to debug; left as specified.
-9. **Linting uses oxlint,** which is what the current Vite template ships and which supports TypeScript 7. The spec only says "lint". Prettier checks formatting in the same step.
+1. **Home re-checks `/api/info` every 5 seconds** (accepted, above). C0-9 says to stop the binary and then click Retry, which needs the error to appear without a reload (a reload cannot work, because the binary also serves the page). The same polling means Home recovers by itself when the server returns.
+2. **`status` is `"error"` when `db` is `"error"`.** The spec gives only the healthy shape and says the unhealthy one has `"db": "error"` and HTTP 503.
+3. **The header title and the `h1` show the same text.** The spec asks for both. The header one is plain text, so each page still has exactly one `h1`.
+4. **The menu button exists only below 768px.** On wider screens the sidebar is always shown and cannot be collapsed, which keeps the Tab order in C0-11 (skip link, navigation, theme toggle).
+5. **CI artifacts are zips.** Each artifact is named `shesha2-<os>-<arch>` as specified and contains the binary (`shesha2` or `shesha2.exe`). Release assets on `phase-*` tags are the bare files, named by platform.
+6. **A missing file under `/assets/` returns `index.html`,** as the spec states for any non-API path. A 404 there would be easier to debug; left as specified.
+7. **Linting uses oxlint,** which is what the current Vite template ships and which supports TypeScript 7. The spec only says "lint". Prettier checks formatting in the same step.
 
 Small additions that are not features but were needed or cheap and safe: a 405 in the error shape for a wrong method on an API route; a 500 in the error shape for a handler panic; `--version`; a smoke test that starts each built binary on its own OS in CI (the full end-to-end suite runs on Linux only).
 
@@ -185,5 +192,7 @@ Artifacts on that run, each a zip holding the binary:
 | `shesha2-macos-arm64` | 2.4 MB |
 
 Not exercised yet: the GitHub Release job. It only runs when a `phase-*` tag is pushed, so its first real run will be the first such tag.
+
+**Later pushes.** Every push to the pull request runs the same workflow; the result for the current head is on the pull request's Checks tab. The second run (the commit that added the table above) also passed every job. The 13 Nov changes (roadmap phases, test ID rename) were checked locally before pushing: all four check groups and the 37 Playwright tests against a fresh release build pass. Per CLAUDE.md, the phase is not reported done unless the run on the current head is green.
 
 Still open for the phase to be accepted: C0-13 (visual quality) and the manual pass of C0-1 to C0-12 in Chrome against a downloaded binary.

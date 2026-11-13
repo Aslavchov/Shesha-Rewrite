@@ -22,57 +22,61 @@ export type AppPage = {
   upcoming?: {
     /** One line: what the page will hold. */
     summary: string
-    /** The phase that builds it. */
-    phase: number
+    /** The roadmap phase that builds it, or "after-v1" if no v1 phase does. */
+    arrives: number | "after-v1"
   }
 }
 
 export const HOME_PAGE: AppPage = { id: "home", path: "/", title: "Home", icon: HomeIcon }
 
-/*
- * The phase numbers below are a working assumption. The Phase 0 spec asks each
- * empty state to name the phase that brings the page, but does not include the
- * roadmap; correct them here when it is confirmed.
- */
+/* When each page arrives follows docs/roadmap.md; keep the two in step. */
 export const UPCOMING_PAGES: AppPage[] = [
   {
     id: "forms",
     path: "/forms",
     title: "Forms",
     icon: FileTextIcon,
-    upcoming: { summary: "Every form in this app, ready to open, preview and edit.", phase: 1 },
+    upcoming: { summary: "Every form in this app, ready to open, preview and edit.", arrives: 1 },
   },
   {
     id: "designer",
     path: "/designer",
     title: "Designer",
     icon: PencilRulerIcon,
-    upcoming: { summary: "The drag-and-drop canvas where forms are built.", phase: 1 },
+    upcoming: { summary: "The drag-and-drop canvas where forms are built.", arrives: 2 },
   },
   {
     id: "entities",
     path: "/entities",
     title: "Entities",
     icon: BoxesIcon,
-    upcoming: { summary: "The data entities and properties that forms bind to.", phase: 2 },
+    upcoming: { summary: "The data entities and properties that forms bind to.", arrives: 5 },
   },
   {
     id: "themes",
     path: "/themes",
     title: "Themes",
     icon: PaletteIcon,
-    upcoming: { summary: "Themes that restyle the whole app by editing design tokens.", phase: 3 },
+    upcoming: {
+      summary: "Themes that restyle the whole app by editing design tokens.",
+      arrives: 4,
+    },
   },
   {
     id: "settings",
     path: "/settings",
     title: "Settings",
     icon: SettingsIcon,
-    upcoming: { summary: "Application-wide settings and preferences.", phase: 4 },
+    upcoming: { summary: "Application-wide settings and preferences.", arrives: "after-v1" },
   },
 ]
 
 /** Sidebar order. */
 export const NAV_PAGES: AppPage[] = [HOME_PAGE, ...UPCOMING_PAGES]
+
+/** The closing sentence of an empty state: when the page arrives. */
+export function arrivalText(arrives: number | "after-v1"): string {
+  return arrives === "after-v1" ? "Arrives after v1." : `Arrives in Phase ${arrives}.`
+}
 
 export const NOT_FOUND_TITLE = "Page not found"

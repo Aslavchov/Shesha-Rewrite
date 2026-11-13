@@ -109,6 +109,7 @@ sudo apt-get install musl-tools
 
 ## Documentation
 
+- [Roadmap](docs/roadmap.md): the phases of v1
 - [Phase 0 spec](docs/specs/phase-0.md) and [Phase 0 report](docs/reports/phase-0.md)
 - [ADR 0001: the stack](docs/adr/0001-stack.md)
 - [ADR 0002: design tokens](docs/adr/0002-tokens.md)

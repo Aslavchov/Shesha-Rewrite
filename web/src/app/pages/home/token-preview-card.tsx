@@ -24,8 +24,8 @@ export function TokenPreviewCard() {
           <Sample label="Buttons">
             <div className="flex flex-wrap gap-2">
               <Button data-testid="token-preview-primary">Primary</Button>
-              <Button variant="outline" data-testid="token-preview-default">
-                Default
+              <Button variant="outline" data-testid="token-preview-outline">
+                Outline
               </Button>
             </div>
           </Sample>

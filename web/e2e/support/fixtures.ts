@@ -42,12 +42,15 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
 export { expect }
 
-/** The pages reachable from the sidebar, in order. */
+/**
+ * The pages reachable from the sidebar, in order. `arrival` is how the page's
+ * empty state says when it will be built (docs/roadmap.md); Home has none.
+ */
 export const NAV = [
-  { id: "home", path: "/", title: "Home" },
-  { id: "forms", path: "/forms", title: "Forms" },
-  { id: "designer", path: "/designer", title: "Designer" },
-  { id: "entities", path: "/entities", title: "Entities" },
-  { id: "themes", path: "/themes", title: "Themes" },
-  { id: "settings", path: "/settings", title: "Settings" },
+  { id: "home", path: "/", title: "Home", arrival: null },
+  { id: "forms", path: "/forms", title: "Forms", arrival: "Arrives in Phase 1." },
+  { id: "designer", path: "/designer", title: "Designer", arrival: "Arrives in Phase 2." },
+  { id: "entities", path: "/entities", title: "Entities", arrival: "Arrives in Phase 5." },
+  { id: "themes", path: "/themes", title: "Themes", arrival: "Arrives in Phase 4." },
+  { id: "settings", path: "/settings", title: "Settings", arrival: "Arrives after v1." },
 ] as const

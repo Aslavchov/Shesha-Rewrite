@@ -42,7 +42,7 @@ test.describe("C0-11 Keyboard", () => {
 
     for (const testId of [
       "token-preview-primary",
-      "token-preview-default",
+      "token-preview-outline",
       "token-preview-input",
     ]) {
       await page.keyboard.press("Tab")

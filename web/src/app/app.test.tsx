@@ -70,12 +70,19 @@ describe("app shell", () => {
     expect(screen.getByTestId(`nav-${page.id}`)).toHaveAttribute("aria-current", "page")
   })
 
-  it.each(UPCOMING_PAGES)("$title has an empty state naming its phase", (page) => {
+  it.each([
+    ["forms", "Arrives in Phase 1."],
+    ["designer", "Arrives in Phase 2."],
+    ["entities", "Arrives in Phase 5."],
+    ["themes", "Arrives in Phase 4."],
+    ["settings", "Arrives after v1."],
+  ])("%s has an empty state saying what is coming and when: %s", (id, arrival) => {
+    const page = UPCOMING_PAGES.find((candidate) => candidate.id === id)
     stubInfo(infoOk)
-    renderAt(page.path)
+    renderAt(page?.path ?? "")
 
     expect(screen.getByTestId("empty-state-description")).toHaveTextContent(
-      `${page.upcoming?.summary} Arrives in Phase ${page.upcoming?.phase}.`,
+      `${page?.upcoming?.summary} ${arrival}`,
     )
   })
 
@@ -127,7 +134,7 @@ describe("home page", () => {
     renderAt("/")
 
     const preview = screen.getByTestId("token-preview")
-    for (const id of ["primary", "default", "input", "card"]) {
+    for (const id of ["primary", "outline", "input", "card"]) {
       expect(within(preview).getByTestId(`token-preview-${id}`)).toBeInTheDocument()
     }
   })

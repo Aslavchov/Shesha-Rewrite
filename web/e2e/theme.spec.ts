@@ -117,7 +117,7 @@ test.describe("C0-8 Brand values applied", () => {
     await page.goto("/")
 
     const preview = page.getByTestId("token-preview")
-    for (const sample of ["primary", "default", "input", "card"]) {
+    for (const sample of ["primary", "outline", "input", "card"]) {
       await expect(preview.getByTestId(`token-preview-${sample}`)).toBeVisible()
     }
     await page.getByTestId("token-preview-input").fill("Hello")
