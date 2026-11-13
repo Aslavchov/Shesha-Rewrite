@@ -32,5 +32,8 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
     restoreMocks: true,
+    // Tests see stylesheets as empty, except the tokens: one test reads them
+    // to check that the token names used in TypeScript exist.
+    css: { include: [/styles\/tokens\.css/] },
   },
 })

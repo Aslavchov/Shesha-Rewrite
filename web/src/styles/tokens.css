@@ -188,13 +188,24 @@
   /* Spacing: every gap, padding and control height is a multiple of this unit. */
   --sys-space-unit: 0.25rem;
 
+  /* Named steps of the space scale. A form document refers to these by name
+     for gaps between components and for padding overrides (ADR 0006). */
+  --sys-space-none: 0rem;
+  --sys-space-xs: calc(var(--sys-space-unit) * 1);
+  --sys-space-sm: calc(var(--sys-space-unit) * 2);
+  --sys-space-md: calc(var(--sys-space-unit) * 4);
+  --sys-space-lg: calc(var(--sys-space-unit) * 6);
+  --sys-space-xl: calc(var(--sys-space-unit) * 8);
+
   /* Radius: one base value; the scale is derived from it. */
   --sys-radius-base: 0.5rem;
+  --sys-radius-none: 0rem;
   --sys-radius-sm: calc(var(--sys-radius-base) * 0.5);
   --sys-radius-md: calc(var(--sys-radius-base) * 0.75);
   --sys-radius-lg: var(--sys-radius-base);
   --sys-radius-xl: calc(var(--sys-radius-base) * 1.5);
   --sys-radius-2xl: calc(var(--sys-radius-base) * 2);
+  --sys-radius-full: 9999px;
 
   /* Shadows: soft, layered, tinted with --sys-shadow-color. Dark mode raises
      --sys-shadow-strength because shadows read weaker on dark surfaces. */
