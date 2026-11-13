@@ -1,6 +1,6 @@
 # Phase 0 — Foundations
 
-Shesha 2.0 · Phase 0 spec · v1.3 · 12 November 2026
+Shesha 2.0 · Phase 0 spec · v1.4 · 13 November 2026
 
 Place this file at `docs/specs/phase-0.md` before the run starts.
 
@@ -98,7 +98,7 @@ Do not add other UI libraries, CSS-in-JS, or a second component system.
 
 - Left sidebar with the product name and six navigation items: Home, Forms, Designer, Entities, Themes, Settings. Use shadcn/ui's sidebar if the Base UI base provides one; otherwise compose it from installed primitives.
 - Header with the current page title and a light/dark toggle.
-- Main content area with a page title and an empty state on every page except Home. Each empty state says in one line what the page will hold and which phase brings it.
+- Main content area with a page title and an empty state on every page except Home. Each empty state says in one line what the page will hold and which phase brings it (see `docs/roadmap.md`; Settings is not in a v1 phase, so it says it comes after v1).
 - A "Skip to content" link as the first focusable element.
 - Below 768 px wide, the sidebar collapses behind a menu button and opens as an overlay.
 - A Not Found page for unknown routes, with a link back to Home.
@@ -106,7 +106,7 @@ Do not add other UI libraries, CSS-in-JS, or a second component system.
 **Home page**
 
 - Shows the app name, version and commit from `/api/info`.
-- Shows a "Design tokens" preview card containing one primary Button, one default Button, one text Input and one nested Card. This card exists so the seed tokens can be verified in the browser.
+- Shows a "Design tokens" preview card containing one primary Button, one outline Button (shadcn's neutral, bordered variant), one text Input and one nested Card. This card exists so the seed tokens can be verified in the browser.
 - If `/api/info` fails, shows a clear "Can't reach the server" message with a Retry button. No blank screen and no unhandled error.
 
 **Theme**
@@ -125,7 +125,7 @@ Do not add other UI libraries, CSS-in-JS, or a second component system.
 
 Every interactive or checked element gets a stable `data-testid` in kebab-case, `area-element`. These are required in this phase:
 
-`app-shell`, `sidebar`, `skip-link`, `nav-home`, `nav-forms`, `nav-designer`, `nav-entities`, `nav-themes`, `nav-settings`, `nav-menu-button`, `theme-toggle`, `page-title`, `app-version`, `app-commit`, `server-error`, `server-retry`, `token-preview`, `token-preview-primary`, `token-preview-default`, `token-preview-input`, `token-preview-card`, `not-found`, `not-found-home-link`.
+`app-shell`, `sidebar`, `skip-link`, `nav-home`, `nav-forms`, `nav-designer`, `nav-entities`, `nav-themes`, `nav-settings`, `nav-menu-button`, `theme-toggle`, `page-title`, `app-version`, `app-commit`, `server-error`, `server-retry`, `token-preview`, `token-preview-primary`, `token-preview-outline`, `token-preview-input`, `token-preview-card`, `not-found`, `not-found-home-link`.
 
 ### 5.5 Build and CI
 

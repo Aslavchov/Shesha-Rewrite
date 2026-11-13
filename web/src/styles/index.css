@@ -1,0 +1,46 @@
+/*
+ * Stylesheet entry point. Order matters: Tailwind and the shadcn/ui helpers
+ * first, then fonts, then tokens (raw values), then theme (bindings).
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./fonts.css";
+@import "./tokens.css";
+@import "./theme.css";
+
+/* Dark mode is a `dark` class on <html>. */
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply font-sans antialiased;
+  }
+
+  body {
+    @apply bg-background text-sm text-foreground;
+  }
+
+  /* Base UI portals (the mobile sidebar) must stack above the app. */
+  #root {
+    isolation: isolate;
+  }
+
+  /*
+   * One focus indicator for the whole app: a solid ring in the focus colour,
+   * offset from the element. Components do not restyle or remove it.
+   */
+  :focus-visible {
+    outline: var(--sys-focus-ring-width) solid var(--ring);
+    outline-offset: var(--sys-focus-ring-offset);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}

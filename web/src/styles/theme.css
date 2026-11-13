@@ -1,0 +1,157 @@
+/*
+ * Bindings: shadcn/ui variables and the Tailwind theme, both expressed in
+ * terms of tokens.css. This file contains no raw values — only var() references
+ * to --sys-* tokens. Dark mode needs no block here: the --sys-color-* tokens
+ * switch under `.dark`, and everything below follows.
+ */
+
+/* shadcn/ui variables → system tokens */
+:root {
+  --background: var(--sys-color-background);
+  --foreground: var(--sys-color-foreground);
+  --card: var(--sys-color-surface);
+  --card-foreground: var(--sys-color-surface-foreground);
+  --popover: var(--sys-color-surface-raised);
+  --popover-foreground: var(--sys-color-surface-raised-foreground);
+  --primary: var(--sys-color-primary);
+  --primary-hover: var(--sys-color-primary-hover);
+  --primary-foreground: var(--sys-color-primary-foreground);
+  --secondary: var(--sys-color-subtle);
+  --secondary-hover: var(--sys-color-subtle-hover);
+  --secondary-foreground: var(--sys-color-subtle-foreground);
+  --muted: var(--sys-color-muted);
+  --muted-foreground: var(--sys-color-muted-foreground);
+  --accent: var(--sys-color-subtle);
+  --accent-foreground: var(--sys-color-subtle-foreground);
+  --destructive: var(--sys-color-destructive);
+  --border: var(--sys-color-border);
+  --input: var(--sys-color-border-control);
+  --ring: var(--sys-color-focus-ring);
+  --overlay: var(--sys-color-overlay);
+  --radius: var(--sys-radius-base);
+  --sidebar: var(--sys-color-sidebar);
+  --sidebar-foreground: var(--sys-color-sidebar-foreground);
+  --sidebar-primary: var(--sys-color-primary);
+  --sidebar-primary-foreground: var(--sys-color-primary-foreground);
+  --sidebar-accent: var(--sys-color-sidebar-accent);
+  --sidebar-accent-foreground: var(--sys-color-sidebar-accent-foreground);
+  --sidebar-border: var(--sys-color-sidebar-border);
+  --sidebar-ring: var(--sys-color-focus-ring);
+}
+
+/*
+ * Tailwind theme. The default colour, type, radius and shadow scales are
+ * cleared so the only utilities that exist are the ones backed by tokens:
+ * `bg-red-500` or `shadow-2xl` simply do not compile. Breakpoints and
+ * container widths stay on Tailwind's defaults (media queries cannot read
+ * CSS variables).
+ */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --font-weight-*: initial;
+  --tracking-*: initial;
+  --leading-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+  --blur-*: initial;
+  --ease-*: initial;
+}
+
+@theme inline {
+  /* Colour */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-sans: var(--sys-font-sans);
+  --font-heading: var(--sys-font-sans);
+  --font-mono: var(--sys-font-mono);
+
+  --text-xs: var(--sys-text-xs);
+  --text-xs--line-height: var(--sys-text-xs-line-height);
+  --text-sm: var(--sys-text-sm);
+  --text-sm--line-height: var(--sys-text-sm-line-height);
+  --text-base: var(--sys-text-base);
+  --text-base--line-height: var(--sys-text-base-line-height);
+  --text-lg: var(--sys-text-lg);
+  --text-lg--line-height: var(--sys-text-lg-line-height);
+  --text-xl: var(--sys-text-xl);
+  --text-xl--line-height: var(--sys-text-xl-line-height);
+  --text-2xl: var(--sys-text-2xl);
+  --text-2xl--line-height: var(--sys-text-2xl-line-height);
+  --text-3xl: var(--sys-text-3xl);
+  --text-3xl--line-height: var(--sys-text-3xl-line-height);
+
+  --font-weight-normal: var(--sys-font-weight-normal);
+  --font-weight-medium: var(--sys-font-weight-medium);
+  --font-weight-semibold: var(--sys-font-weight-semibold);
+
+  --leading-none: var(--sys-leading-none);
+  --leading-tight: var(--sys-leading-tight);
+  --leading-snug: var(--sys-leading-snug);
+  --leading-normal: var(--sys-leading-normal);
+  --leading-relaxed: var(--sys-leading-relaxed);
+
+  --tracking-tight: var(--sys-tracking-tight);
+  --tracking-normal: var(--sys-tracking-normal);
+  --tracking-wide: var(--sys-tracking-wide);
+
+  /* Spacing, radius, shadow */
+  --spacing: var(--sys-space-unit);
+
+  --radius-sm: var(--sys-radius-sm);
+  --radius-md: var(--sys-radius-md);
+  --radius-lg: var(--sys-radius-lg);
+  --radius-xl: var(--sys-radius-xl);
+  --radius-2xl: var(--sys-radius-2xl);
+
+  --shadow-xs: var(--sys-shadow-xs);
+  --shadow-sm: var(--sys-shadow-sm);
+  --shadow-md: var(--sys-shadow-md);
+  --shadow-lg: var(--sys-shadow-lg);
+
+  --blur-scrim: var(--sys-scrim-blur);
+
+  /* Motion */
+  --ease-standard: var(--sys-ease-standard);
+  --default-transition-duration: var(--sys-duration-fast);
+  --default-transition-timing-function: var(--sys-ease-standard);
+
+  /* Layout */
+  --spacing-sidebar: var(--sys-size-sidebar);
+  --spacing-sidebar-mobile: var(--sys-size-sidebar-mobile);
+  --spacing-header: var(--sys-size-header);
+  --container-content: var(--sys-size-content);
+}

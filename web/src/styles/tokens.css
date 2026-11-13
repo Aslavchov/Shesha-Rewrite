@@ -1,0 +1,258 @@
+/*
+ * Design tokens — the single source of design values.
+ *
+ * Raw values (colours, sizes, shadows, durations) live in this file and
+ * nowhere else. Everything downstream references them:
+ *
+ *   tokens.css  →  theme.css (shadcn/ui variables + Tailwind theme)  →  components
+ *
+ * Two tiers:
+ *   --ref-*  Reference tokens: the palette. Raw values with no meaning attached.
+ *   --sys-*  System tokens: the decisions components consume. Colours point at
+ *            the palette and are redefined under `.dark`; type, space, radius,
+ *            shadow, motion and layout hold their value directly.
+ *
+ * See docs/adr/0002-tokens.md.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Tier 1 — reference palette
+ * ------------------------------------------------------------------------ */
+:root {
+  /* Brand blue. 600 is the fixed brand value (#003BB2); the other steps keep
+     its OKLCH hue (262.4) and vary lightness and chroma. */
+  --ref-blue-50: oklch(0.972 0.013 262.4);
+  --ref-blue-100: oklch(0.94 0.028 262.4);
+  --ref-blue-200: oklch(0.885 0.055 262.4);
+  --ref-blue-300: oklch(0.81 0.095 262.4);
+  --ref-blue-400: oklch(0.715 0.148 262.4);
+  --ref-blue-500: oklch(0.6 0.2 262.4);
+  --ref-blue-600: #003bb2;
+  --ref-blue-700: oklch(0.36 0.175 262.4);
+  --ref-blue-800: oklch(0.31 0.15 262.4);
+  --ref-blue-900: oklch(0.27 0.11 262.4);
+  --ref-blue-950: oklch(0.21 0.08 262.4);
+
+  /* Neutrals, tinted very slightly towards the brand hue. */
+  --ref-neutral-0: oklch(1 0 0);
+  --ref-neutral-50: oklch(0.985 0.002 262);
+  --ref-neutral-100: oklch(0.968 0.004 262);
+  --ref-neutral-200: oklch(0.925 0.006 262);
+  --ref-neutral-300: oklch(0.87 0.009 262);
+  --ref-neutral-400: oklch(0.708 0.014 262);
+  --ref-neutral-500: oklch(0.535 0.016 262);
+  --ref-neutral-600: oklch(0.442 0.016 262);
+  --ref-neutral-700: oklch(0.37 0.015 262);
+  --ref-neutral-800: oklch(0.275 0.013 262);
+  --ref-neutral-900: oklch(0.208 0.012 262);
+  --ref-neutral-950: oklch(0.145 0.01 262);
+
+  /* Red, for destructive and invalid states. */
+  --ref-red-400: oklch(0.704 0.191 22.2);
+  --ref-red-600: oklch(0.577 0.245 27.3);
+
+  /* Translucent neutrals for dark-mode hairlines and scrims. */
+  --ref-white-a10: oklch(1 0 0 / 10%);
+  --ref-white-a15: oklch(1 0 0 / 15%);
+  --ref-black-a40: oklch(0 0 0 / 40%);
+  --ref-black-a60: oklch(0 0 0 / 60%);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tier 2 — system tokens: colour (light)
+ * ------------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces and text */
+  --sys-color-background: var(--ref-neutral-0);
+  --sys-color-foreground: var(--ref-neutral-950);
+  --sys-color-surface: var(--ref-neutral-0);
+  --sys-color-surface-foreground: var(--ref-neutral-950);
+  --sys-color-surface-raised: var(--ref-neutral-0);
+  --sys-color-surface-raised-foreground: var(--ref-neutral-950);
+  --sys-color-muted: var(--ref-neutral-100);
+  --sys-color-muted-foreground: var(--ref-neutral-500);
+  --sys-color-subtle: var(--ref-neutral-100);
+  --sys-color-subtle-hover: var(--ref-neutral-200);
+  --sys-color-subtle-foreground: var(--ref-neutral-900);
+
+  /* Brand */
+  --sys-color-primary: var(--ref-blue-600);
+  --sys-color-primary-hover: var(--ref-blue-700);
+  --sys-color-primary-foreground: var(--ref-neutral-0);
+
+  /* Feedback */
+  --sys-color-destructive: var(--ref-red-600);
+
+  /* Lines */
+  --sys-color-border: var(--ref-neutral-200);
+  --sys-color-border-control: var(--ref-neutral-300);
+  --sys-color-focus-ring: var(--ref-blue-600);
+  --sys-color-overlay: var(--ref-black-a40);
+
+  /* Sidebar */
+  --sys-color-sidebar: var(--ref-neutral-50);
+  --sys-color-sidebar-foreground: var(--ref-neutral-700);
+  --sys-color-sidebar-accent: var(--ref-neutral-200);
+  --sys-color-sidebar-accent-foreground: var(--ref-neutral-950);
+  --sys-color-sidebar-border: var(--ref-neutral-200);
+
+  /* Shadow tint and strength (see --sys-shadow-*) */
+  --sys-shadow-color: var(--ref-neutral-950);
+  --sys-shadow-strength: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tier 2 — system tokens: colour (dark)
+ * ------------------------------------------------------------------------ */
+.dark {
+  color-scheme: dark;
+
+  --sys-color-background: var(--ref-neutral-950);
+  --sys-color-foreground: var(--ref-neutral-50);
+  --sys-color-surface: var(--ref-neutral-900);
+  --sys-color-surface-foreground: var(--ref-neutral-50);
+  --sys-color-surface-raised: var(--ref-neutral-800);
+  --sys-color-surface-raised-foreground: var(--ref-neutral-50);
+  --sys-color-muted: var(--ref-neutral-800);
+  --sys-color-muted-foreground: var(--ref-neutral-400);
+  --sys-color-subtle: var(--ref-neutral-800);
+  --sys-color-subtle-hover: var(--ref-neutral-700);
+  --sys-color-subtle-foreground: var(--ref-neutral-50);
+
+  /* #003BB2 reaches only 2.1:1 against the dark background, so dark mode
+     uses a lighter tint of the same hue with dark text on top. */
+  --sys-color-primary: var(--ref-blue-400);
+  --sys-color-primary-hover: var(--ref-blue-300);
+  --sys-color-primary-foreground: var(--ref-blue-950);
+
+  --sys-color-destructive: var(--ref-red-400);
+
+  --sys-color-border: var(--ref-white-a10);
+  --sys-color-border-control: var(--ref-white-a15);
+  --sys-color-focus-ring: var(--ref-blue-400);
+  --sys-color-overlay: var(--ref-black-a60);
+
+  --sys-color-sidebar: var(--ref-neutral-900);
+  --sys-color-sidebar-foreground: var(--ref-neutral-300);
+  --sys-color-sidebar-accent: var(--ref-neutral-800);
+  --sys-color-sidebar-accent-foreground: var(--ref-neutral-50);
+  --sys-color-sidebar-border: var(--ref-white-a10);
+
+  --sys-shadow-color: oklch(0 0 0);
+  --sys-shadow-strength: 3;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tier 2 — system tokens: everything that does not change with the scheme
+ * ------------------------------------------------------------------------ */
+:root {
+  /* Typography. Inter is the fixed brand typeface, self-hosted (fonts.css). */
+  --sys-font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  --sys-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Type scale: size / line height. 14px is the UI default. */
+  --sys-text-xs: 0.75rem;
+  --sys-text-xs-line-height: 1rem;
+  --sys-text-sm: 0.875rem;
+  --sys-text-sm-line-height: 1.25rem;
+  --sys-text-base: 1rem;
+  --sys-text-base-line-height: 1.5rem;
+  --sys-text-lg: 1.125rem;
+  --sys-text-lg-line-height: 1.75rem;
+  --sys-text-xl: 1.25rem;
+  --sys-text-xl-line-height: 1.75rem;
+  --sys-text-2xl: 1.5rem;
+  --sys-text-2xl-line-height: 2rem;
+  --sys-text-3xl: 1.875rem;
+  --sys-text-3xl-line-height: 2.25rem;
+
+  --sys-font-weight-normal: 400;
+  --sys-font-weight-medium: 500;
+  --sys-font-weight-semibold: 600;
+
+  --sys-leading-none: 1;
+  --sys-leading-tight: 1.25;
+  --sys-leading-snug: 1.375;
+  --sys-leading-normal: 1.5;
+  --sys-leading-relaxed: 1.625;
+
+  --sys-tracking-tight: -0.015em;
+  --sys-tracking-normal: 0em;
+  --sys-tracking-wide: 0.025em;
+
+  /* Spacing: every gap, padding and control height is a multiple of this unit. */
+  --sys-space-unit: 0.25rem;
+
+  /* Radius: one base value; the scale is derived from it. */
+  --sys-radius-base: 0.5rem;
+  --sys-radius-sm: calc(var(--sys-radius-base) * 0.5);
+  --sys-radius-md: calc(var(--sys-radius-base) * 0.75);
+  --sys-radius-lg: var(--sys-radius-base);
+  --sys-radius-xl: calc(var(--sys-radius-base) * 1.5);
+  --sys-radius-2xl: calc(var(--sys-radius-base) * 2);
+
+  /* Shadows: soft, layered, tinted with --sys-shadow-color. Dark mode raises
+     --sys-shadow-strength because shadows read weaker on dark surfaces. */
+  --sys-shadow-xs: 0 1px 2px 0
+    color-mix(in oklab, var(--sys-shadow-color) calc(5% * var(--sys-shadow-strength)), transparent);
+  --sys-shadow-sm:
+    0 1px 3px 0
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(8% * var(--sys-shadow-strength)),
+        transparent
+      ),
+    0 1px 2px -1px
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(8% * var(--sys-shadow-strength)),
+        transparent
+      );
+  --sys-shadow-md:
+    0 4px 8px -2px
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(8% * var(--sys-shadow-strength)),
+        transparent
+      ),
+    0 2px 4px -2px
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(6% * var(--sys-shadow-strength)),
+        transparent
+      );
+  --sys-shadow-lg:
+    0 12px 24px -6px
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(12% * var(--sys-shadow-strength)),
+        transparent
+      ),
+    0 4px 8px -4px
+      color-mix(
+        in oklab,
+        var(--sys-shadow-color) calc(8% * var(--sys-shadow-strength)),
+        transparent
+      );
+
+  /* Focus indicator: a solid ring, offset from the element. */
+  --sys-focus-ring-width: 2px;
+  --sys-focus-ring-offset: 2px;
+
+  /* Motion */
+  --sys-duration-fast: 150ms;
+  --sys-duration-normal: 200ms;
+  --sys-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --sys-size-sidebar: 16rem;
+  --sys-size-sidebar-mobile: 18rem;
+  --sys-size-header: 3.5rem;
+  --sys-size-content: 64rem;
+  --sys-scrim-blur: 4px;
+}
