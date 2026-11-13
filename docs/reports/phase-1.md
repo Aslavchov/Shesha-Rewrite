@@ -148,7 +148,7 @@ Changes to Phase 0 code, beyond adding to it:
 - Lifting the server's nesting limit (deviation 3).
 - Locale-aware dates, numbers and messages. Internationalisation is out of scope; dates are written `14 March 1990` everywhere.
 - Deleting or renaming a form from the UI. The API does both.
-- Splitting the JavaScript bundle: it is now 695 kB (218 kB gzipped) in one file, mostly the calendar and its date library. Vite warns above 500 kB.
+- Splitting the JavaScript bundle: it is now 695 kB (219 kB gzipped) in one file, mostly the calendar and its date library. Vite warns above 500 kB.
 - Still open from Phase 0: an automated guard for raw values in components.
 
 ## Blockers
