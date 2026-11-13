@@ -25,7 +25,9 @@ export function CheckboxEdit({
           {...control}
           {...slot.control}
           // A real button, so the label beside it names it and toggles it.
+          // The linter cannot see that label: it is tied to this id by htmlFor.
           nativeButton
+          // oxlint-disable-next-line jsx-a11y/control-has-associated-label
           render={<button type="button" />}
           checked={field.value === true}
           onCheckedChange={(checked) => field.setValue(checked)}

@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
+import type { UserEvent } from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 
 import { fieldError, fieldRoot, fieldValue, instance, renderForm } from "../../testing/render-form"
@@ -26,6 +27,27 @@ function trigger(): HTMLElement {
   if (!element) throw new Error("The select has no trigger.")
   return element
 }
+
+/**
+ * Opens the list with the mouse. A press opens it on the next animation
+ * frame (Base UI waits for focus to settle), so the test waits for that.
+ */
+async function openWithMouse(user: UserEvent) {
+  await user.click(trigger())
+  await waitFor(() => expect(trigger()).toHaveAttribute("aria-expanded", "true"))
+}
+
+/**
+ * Opens the list from the focused trigger with a key. The list is open at
+ * once; focus moves into it a moment later, so the test waits for that.
+ */
+async function openWithKey(user: UserEvent, key = "{ArrowDown}") {
+  await user.keyboard(key)
+  await waitFor(() => expect(popup().contains(document.activeElement)).toBe(true))
+}
+
+/** Closing the list hands focus back to the trigger a moment later. */
+const focusReturnsToTrigger = () => waitFor(() => expect(trigger()).toHaveFocus())
 
 const popup = () => screen.getByTestId("field-contact-popup")
 const option = (name: string) => within(popup()).getByRole("option", { name })
@@ -108,16 +130,15 @@ describe("select: default render", () => {
   it("lists its options by label, in order, after an item that clears the value", async () => {
     const { user } = renderSelect()
 
-    await user.click(trigger())
+    await openWithMouse(user)
 
-    expect(trigger()).toHaveAttribute("aria-expanded", "true")
     expect(optionNames()).toEqual(["Select an option", "Email", "Phone", "Post"])
   })
 
   it("names the clearing item after the placeholder", async () => {
     const { user } = renderSelect({ placeholder: "No preference" })
 
-    await user.click(trigger())
+    await openWithMouse(user)
 
     expect(optionNames()).toEqual(["No preference", "Email", "Phone", "Post"])
   })
@@ -153,7 +174,7 @@ describe("select: default render", () => {
   it("offers no clearing item when a value is required", async () => {
     const { user } = renderSelect({ required: true })
 
-    await user.click(trigger())
+    await openWithMouse(user)
 
     expect(optionNames()).toEqual(["Email", "Phone", "Post"])
   })
@@ -171,7 +192,7 @@ describe("select: default render", () => {
       },
     )
 
-    await user.click(trigger())
+    await openWithMouse(user)
 
     const root = fieldRoot("contact")
     expect(root.querySelector("[data-slot=field-label]")).toHaveStyle({ color: "#003BB2" })
@@ -183,7 +204,7 @@ describe("select: default render", () => {
     // The popup and the items never receive the trigger's padding or background.
     expect(popup()).toHaveAttribute("data-slot", "select-content")
     expect(popup().style.borderRadius).toBe("var(--sys-radius-none)")
-    expect(popup().style.borderColor).toBe("#ff0000")
+    expect(popup()).toHaveStyle({ borderColor: "#FF0000" })
     expect(popup().style.padding).toBe("")
     expect(popup().style.backgroundColor).toBe("")
     expect(popup().style.fontWeight).toBe("")
@@ -215,7 +236,7 @@ describe("select: default render", () => {
     const control = screen.getByRole("combobox", { name: "Select" })
     expect(control).toHaveTextContent("Select an option")
     expect(control).not.toHaveAttribute("aria-required")
-    await user.click(control)
+    await openWithMouse(user)
     expect(optionNames()).toEqual(["Select an option"])
     await user.keyboard("{Escape}")
     submit()
@@ -228,7 +249,7 @@ describe("select: default render", () => {
 describe("select: read-only render", () => {
   it("shows the chosen option's label as text, with no control", async () => {
     const { user, setMode } = renderSelect({ label: "Contact" })
-    await user.click(trigger())
+    await openWithMouse(user)
     await user.click(option("Phone"))
 
     setMode("read-only")
@@ -285,7 +306,7 @@ describe("select: values", () => {
   it("submits the chosen option's value, a string", async () => {
     const { user, submit, submitted } = renderSelect()
 
-    await user.click(trigger())
+    await openWithMouse(user)
     await user.click(option("Post"))
     submit()
 
@@ -306,12 +327,12 @@ describe("select: values", () => {
     submit()
     expect(submitted()).toEqual({ contact: null })
 
-    await user.click(trigger())
+    await openWithMouse(user)
     await user.click(option("Email"))
     submit()
     expect(submitted()).toEqual({ contact: "email" })
 
-    await user.click(trigger())
+    await openWithMouse(user)
     await user.click(option("Select an option"))
     submit()
 
@@ -323,7 +344,7 @@ describe("select: values", () => {
   it("marks the chosen option in the list", async () => {
     const { user } = renderSelect({ defaultValue: "phone" })
 
-    await user.click(trigger())
+    await openWithMouse(user)
 
     expect(option("Phone")).toHaveAttribute("aria-selected", "true")
     expect(option("Email")).toHaveAttribute("aria-selected", "false")
@@ -343,7 +364,7 @@ describe("select: validation rules", () => {
     expect(trigger()).toHaveAttribute("aria-invalid", "true")
     expect(trigger()).toHaveAccessibleDescription("This field is required")
 
-    await user.click(trigger())
+    await openWithMouse(user)
     await user.click(option("Email"))
     expect(fieldError("contact")).toBeNull()
     expect(trigger()).not.toHaveAttribute("aria-invalid")
@@ -378,13 +399,13 @@ describe("select: validation rules", () => {
 
     // Opening the list moves focus from the trigger into the list.
     await user.tab()
-    await user.keyboard("{ArrowDown}")
+    await openWithKey(user)
     expect(option("Email")).toHaveFocus()
     expect(fieldError("contact")).toBeNull()
 
     // Closing it without choosing returns to the trigger: still not left.
     await user.keyboard("{Escape}")
-    expect(trigger()).toHaveFocus()
+    await focusReturnsToTrigger()
     expect(fieldError("contact")).toBeNull()
 
     await user.tab()
@@ -401,12 +422,23 @@ describe("select: validation rules", () => {
     )
 
     await user.tab()
-    await user.keyboard("{ArrowDown}")
+    await openWithKey(user)
     expect(fieldError("contact")).toBeNull()
     await user.tab()
 
     expect(trigger()).toHaveAttribute("aria-expanded", "false")
     expect(screen.getByRole("combobox", { name: "Backup" })).toHaveFocus()
+    expect(fieldError("contact")).toHaveTextContent("This field is required")
+  })
+
+  it("counts as left when the open list is dismissed by clicking away", async () => {
+    const { user } = renderSelect({ required: true })
+
+    await openWithMouse(user)
+    expect(fieldError("contact")).toBeNull()
+    await user.click(document.body)
+
+    expect(trigger()).toHaveAttribute("aria-expanded", "false")
     expect(fieldError("contact")).toHaveTextContent("This field is required")
   })
 
@@ -430,7 +462,7 @@ describe("select: keyboard", () => {
     await user.tab()
     expect(screen.getByRole("combobox", { name: "Contact" })).toHaveFocus()
 
-    await user.keyboard("{ArrowDown}")
+    await openWithKey(user)
     expect(trigger()).toHaveAttribute("aria-expanded", "true")
     expect(option("Email")).toHaveFocus()
 
@@ -443,7 +475,7 @@ describe("select: keyboard", () => {
 
     await user.keyboard("{Enter}")
     expect(trigger()).toHaveAttribute("aria-expanded", "false")
-    expect(trigger()).toHaveFocus()
+    await focusReturnsToTrigger()
     expect(trigger()).toHaveTextContent("Phone")
 
     submit()
@@ -454,24 +486,24 @@ describe("select: keyboard", () => {
     const { user } = renderSelect()
 
     await user.tab()
-    await user.keyboard(key)
+    await openWithKey(user, key)
 
     expect(trigger()).toHaveAttribute("aria-expanded", "true")
-    expect(popup()).toBeInTheDocument()
+    expect(option("Select an option")).toHaveFocus()
   })
 
   it("closes with Escape, keeps the value and returns focus to the trigger", async () => {
     const { user, submit, submitted } = renderSelect({ defaultValue: "email" })
 
     await user.tab()
-    await user.keyboard("{ArrowDown}")
+    await openWithKey(user)
     expect(option("Email")).toHaveFocus()
     await user.keyboard("{ArrowDown}")
     expect(option("Phone")).toHaveFocus()
 
     await user.keyboard("{Escape}")
     expect(trigger()).toHaveAttribute("aria-expanded", "false")
-    expect(trigger()).toHaveFocus()
+    await focusReturnsToTrigger()
     expect(trigger()).toHaveTextContent("Email")
 
     submit()
@@ -482,13 +514,13 @@ describe("select: keyboard", () => {
     const { user, submit, submitted } = renderSelect({ defaultValue: "email" })
 
     await user.tab()
-    await user.keyboard("{ArrowDown}")
+    await openWithKey(user)
     expect(option("Email")).toHaveFocus()
     await user.keyboard("{ArrowUp}")
     expect(option("Select an option")).toHaveFocus()
     await user.keyboard("{Enter}")
 
-    expect(trigger()).toHaveFocus()
+    await focusReturnsToTrigger()
     expect(trigger()).toHaveTextContent("Select an option")
     submit()
     expect(submitted()).toEqual({ contact: null })

@@ -157,6 +157,60 @@ describe("FormStore: when errors appear", () => {
   })
 })
 
+describe("FormStore: hold and release", () => {
+  const fields = [
+    spec({ id: "a", validate: requiredText }),
+    spec({ id: "b", validate: requiredText }),
+  ]
+
+  it("puts off the validation of a field that is left until release", () => {
+    const store = mounted(fields)
+
+    store.hold()
+    store.leave("a")
+    expect(store.get("a").error).toBeNull()
+
+    store.release()
+    expect(store.get("a").error).toBe("Required")
+    expect(store.get("b").error).toBeNull()
+
+    // Released: leaving validates at once again.
+    store.leave("b")
+    expect(store.get("b").error).toBe("Required")
+  })
+
+  it("a submit during the hold still validates everything", () => {
+    const store = mounted(fields)
+    store.hold()
+    store.leave("a")
+
+    expect(store.submit()).toEqual({ valid: false, firstInvalid: "a" })
+    store.release()
+
+    expect(store.get("a").error).toBe("Required")
+    expect(store.get("b").error).toBe("Required")
+  })
+
+  it("a reset during the hold forgets the fields that were left", () => {
+    const store = mounted(fields)
+    store.hold()
+    store.leave("a")
+
+    store.reset()
+    store.release()
+
+    expect(store.get("a").error).toBeNull()
+  })
+
+  it("release with nothing held does nothing", () => {
+    const store = mounted(fields)
+
+    store.release()
+
+    expect(store.get("a").error).toBeNull()
+  })
+})
+
 describe("FormStore: unreadable text", () => {
   const fields = [spec({ id: "n", valueType: "number", defaultValue: 4 })]
 

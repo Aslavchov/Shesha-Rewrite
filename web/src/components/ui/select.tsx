@@ -44,14 +44,12 @@ function SelectTrigger({
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon
-        render={
-          <ChevronDownIcon
-            aria-hidden="true"
-            className="pointer-events-none size-4 text-muted-foreground"
-          />
-        }
-      />
+      <SelectPrimitive.Icon>
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="pointer-events-none size-4 text-muted-foreground"
+        />
+      </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
 }

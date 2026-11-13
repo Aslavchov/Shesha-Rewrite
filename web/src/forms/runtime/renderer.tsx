@@ -86,6 +86,25 @@ function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRe
     return { store, uid, actions: { submit, reset } }
   }, [store, uid])
 
+  // While a pointer is pressed inside the form, leaving a field is not judged
+  // until the press is over (see `FormStore.hold`). The release waits a tick,
+  // so the click that ends the press has been handled first.
+  React.useEffect(() => {
+    let timer: number | undefined
+    const release = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => store.release())
+    }
+    window.addEventListener("pointerup", release, true)
+    window.addEventListener("pointercancel", release, true)
+    return () => {
+      window.removeEventListener("pointerup", release, true)
+      window.removeEventListener("pointercancel", release, true)
+      window.clearTimeout(timer)
+      store.release()
+    }
+  }, [store])
+
   const className = cn("flex flex-col", GAP_CLASS[model.gap])
   const content = <NodeList nodes={model.nodes} mode={mode} />
 
@@ -98,6 +117,7 @@ function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRe
           data-testid="form"
           data-mode={mode}
           className={className}
+          onPointerDownCapture={() => store.hold()}
           onSubmit={(event) => {
             event.preventDefault()
             context.actions.submit()

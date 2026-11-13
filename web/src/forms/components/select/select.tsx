@@ -3,6 +3,7 @@ import * as React from "react"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,7 +31,7 @@ export function SelectEdit({
 }: InputEditProps<"option", typeof settings, Slot>) {
   const prompt = placeholder ?? DEFAULT_PLACEHOLDER
   // The field is left when focus leaves it while the list is closed (ADR 0005).
-  // Opening the list moves focus into it, which is not leaving.
+  // Opening the list moves focus from the trigger into it, which is not leaving.
   const isOpen = React.useRef(false)
 
   return (
@@ -47,9 +48,11 @@ export function SelectEdit({
           value={field.value}
           onValueChange={(value) => field.setValue(value)}
           onOpenChange={(open, { reason }) => {
-            isOpen.current = open; (globalThis as unknown as {log: string[]}).log?.push(`${open} ${reason} active=${document.activeElement?.getAttribute("role")}`)
-            // Tab from the open list closes it and moves on, past the trigger.
-            if (!open && reason === "focus-out") field.leave()
+            isOpen.current = open
+            // Tabbing or clicking away from the open list closes it and moves
+            // on without passing through the trigger. Escape and choosing an
+            // option return focus to the trigger, so they are not leaving.
+            if (!open && (reason === "focus-out" || reason === "outside-press")) field.leave()
           }}
         >
           <SelectTrigger
@@ -63,17 +66,19 @@ export function SelectEdit({
             <SelectValue>{labelOf(options, field.value) ?? prompt}</SelectValue>
           </SelectTrigger>
           <SelectContent data-testid={`field-${instance.name}-popup`} {...slot.popup}>
-            {isRequired ? null : (
-              // An optional select can be cleared: this item's value is "no value".
-              <SelectItem value={null} className="text-muted-foreground" {...slot.item}>
-                {prompt}
-              </SelectItem>
-            )}
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value} {...slot.item}>
-                {option.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {isRequired ? null : (
+                // An optional select can be cleared: this item's value is "no value".
+                <SelectItem value={null} className="text-muted-foreground" {...slot.item}>
+                  {prompt}
+                </SelectItem>
+              )}
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value} {...slot.item}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       )}

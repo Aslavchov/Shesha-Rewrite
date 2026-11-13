@@ -29,8 +29,10 @@ export function DatePickerEdit({
     unreadable: "Enter a date like 14 March 1990",
   })
   const [open, setOpen] = React.useState(false)
-  // The control: the text input and the calendar button, not the calendar.
-  const group = React.useRef<HTMLDivElement>(null)
+  // The control is the text input and the calendar button; the calendar is
+  // rendered elsewhere in the page, in a portal.
+  const control = React.useRef<HTMLDivElement>(null)
+  const calendar = React.useRef<HTMLDivElement>(null)
 
   function leave() {
     draft.settle()
@@ -38,24 +40,31 @@ export function DatePickerEdit({
   }
 
   /*
-   * The field is left when focus leaves the input and the button while the
-   * calendar is closed (ADR 0005). Two things make that less simple than it
-   * sounds. React sends the calendar's focus events here too, through the
-   * portal, though the calendar is not inside the group in the DOM. And
-   * closing the calendar may move focus without any event from the group.
-   * So: focus moving inside the calendar is never leaving, and where focus
-   * is once the calendar has closed is checked then (`closed`).
+   * The field is left when focus leaves the control while the calendar is
+   * closed (ADR 0005). Moving between the input and the button is not
+   * leaving, and nothing is while the calendar is open: what happened to
+   * focus in the meantime is settled when it has closed (`calendarClosed`).
+   * React also sends the calendar's own focus events here, through the
+   * portal; they never count, the calendar not being part of the control.
    */
   function blurred(event: React.FocusEvent) {
-    const control = group.current
-    if (open || control === null) return
-    if (!(event.target instanceof Node) || !control.contains(event.target)) return
-    if (!control.contains(event.relatedTarget)) leave()
+    const group = control.current
+    if (open || group === null) return
+    if (!(event.target instanceof Node) || !group.contains(event.target)) return
+    if (!group.contains(event.relatedTarget)) leave()
   }
 
-  function closed() {
-    const control = group.current
-    if (control !== null && !control.contains(control.ownerDocument.activeElement)) leave()
+  /*
+   * The calendar has closed. The field is left if focus is now on something
+   * else on the page: the person tabbed out of the calendar, or clicked
+   * another control. Otherwise focus is on its way back to the button
+   * (after Escape, or a day being picked), and that is not leaving.
+   */
+  function calendarClosed() {
+    const focused = document.activeElement
+    if (focused === null || focused === document.body) return
+    if (control.current?.contains(focused) || calendar.current?.contains(focused)) return
+    leave()
   }
 
   return (
@@ -67,32 +76,36 @@ export function DatePickerEdit({
       helpText={helpText}
       slots={slot}
     >
-      {(control) => (
-        <InputGroup ref={group} onBlur={blurred}>
+      {(attributes) => (
+        <InputGroup ref={control} onBlur={blurred}>
           <InputGroupInput
-            {...control}
+            {...attributes}
             {...slot.control}
             type="text"
             autoComplete="off"
             value={draft.text}
             placeholder={placeholder}
             onChange={(event) => draft.change(event.target.value)}
+            // Typing is over: a date that was read is shown in its standard form.
+            onBlur={draft.settle}
           />
           <InputGroupAddon align="inline-end">
             <Popover
               open={open}
               onOpenChange={setOpen}
               onOpenChangeComplete={(isOpen) => {
-                if (!isOpen) closed()
+                if (!isOpen) calendarClosed()
               }}
             >
               <PopoverTrigger
-                render={<InputGroupButton size="icon-xs" aria-label="Choose date" />}
-                {...slot.trigger}
+                render={
+                  <InputGroupButton size="icon-xs" aria-label="Choose date" {...slot.trigger} />
+                }
               >
                 <CalendarIcon aria-hidden="true" />
               </PopoverTrigger>
               <PopoverContent
+                ref={calendar}
                 align="end"
                 aria-label="Choose date"
                 data-testid={`field-${instance.name}-popup`}

@@ -93,6 +93,10 @@ export function controls(form: DemoForm): Record<InputName, Locator> {
   }
 }
 
+/** The button for one day in the open calendar. */
+export const dayButton = (form: DemoForm, iso: string) =>
+  form.calendar.locator(`button[data-day="${iso}"]`)
+
 /** Opens the calendar and picks a day by clicking it, as a mouse user would. */
 export async function pickDate(form: DemoForm, iso: string) {
   const [year, month] = iso.split("-").map(Number)
@@ -103,7 +107,7 @@ export async function pickDate(form: DemoForm, iso: string) {
   const dropdowns = form.calendar.getByRole("combobox")
   await dropdowns.nth(1).selectOption(String(year))
   await dropdowns.nth(0).selectOption(String(month - 1))
-  await form.calendar.locator(`[data-day="${iso}"]`).click()
+  await dayButton(form, iso).click()
   await expect(form.calendar).toBeHidden()
 }
 

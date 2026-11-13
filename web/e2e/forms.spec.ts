@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test"
 
 import {
   controls,
+  dayButton,
   demoForm,
   fillValid,
   INPUTS,
@@ -706,11 +707,11 @@ test.describe("C1-12 Keyboard only", () => {
     await dropdowns.nth(1).selectOption("1990")
     await dropdowns.nth(0).focus()
     await dropdowns.nth(0).selectOption("2")
-    const day = form.calendar.locator('[data-day="1990-03-13"]')
+    const day = dayButton(form, "1990-03-13")
     await day.focus()
     expect((await focused(page))?.hasRing).toBe(true)
     await keyboard.press("ArrowRight")
-    await expect(form.calendar.locator('[data-day="1990-03-14"]')).toBeFocused()
+    await expect(dayButton(form, "1990-03-14")).toBeFocused()
     await keyboard.press("Enter")
     await expect(form.calendar).toBeHidden()
     await expect(form.dateOfBirth).toHaveValue("14 March 1990")
@@ -725,8 +726,10 @@ test.describe("C1-12 Keyboard only", () => {
     await expectFocus("preferredContact")
     await keyboard.press("Enter")
     await expect(form.options).toBeVisible()
+    const highlighted = form.options.locator("[role=option][data-highlighted]")
+    await expect(highlighted).toHaveText("Email")
     await keyboard.press("ArrowDown")
-    await keyboard.press("ArrowDown")
+    await expect(highlighted).toHaveText("Phone")
     await keyboard.press("Enter")
     await expect(form.options).toBeHidden()
     await expect(form.preferredContact).toHaveText("Phone")
@@ -775,7 +778,7 @@ test.describe("C1-12 Keyboard only", () => {
     await page.keyboard.press("Space")
     await expect(form.calendar).toBeVisible()
     // It opens on the month of the value.
-    await expect(form.calendar.locator('[data-day="1990-03-14"]')).toBeVisible()
+    await expect(dayButton(form, "1990-03-14")).toBeVisible()
     await page.keyboard.press("Escape")
     await expect(form.calendar).toBeHidden()
     await expect(form.calendarButton).toBeFocused()

@@ -58,6 +58,9 @@ export function DateCalendar({
       }}
       // Opens on the selected day's month, or today's, with that day focused.
       defaultMonth={selected}
+      // The calendar's own prop, not the HTML attribute: when the popup opens,
+      // focus goes to a day, so the arrow keys work at once.
+      // oxlint-disable-next-line jsx-a11y/no-autofocus
       autoFocus
       captionLayout="dropdown"
       startMonth={first}

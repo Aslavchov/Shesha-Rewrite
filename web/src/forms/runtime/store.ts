@@ -49,6 +49,9 @@ export class FormStore {
   readonly #unreadable = new Map<string, string>()
   /** How many components are showing each field for editing. */
   readonly #mounted = new Map<string, number>()
+  /** While held, fields that are left wait here instead of being validated. */
+  readonly #left = new Set<string>()
+  #held = false
 
   constructor(fields: readonly FieldSpec[]) {
     this.#fields = fields
@@ -111,8 +114,31 @@ export class FormStore {
   leave(id: string): void {
     const spec = this.#specs.get(id)
     if (!spec) return
+    if (this.#held) {
+      this.#left.add(id)
+      return
+    }
     const { value } = this.get(id)
     this.#update(id, { value, error: this.#check(spec, value) })
+  }
+
+  /**
+   * Puts off the validation of fields that are left, until `release`. The
+   * renderer holds while a pointer is pressed inside the form: pressing a
+   * button takes focus from the field being edited, and an error appearing
+   * under that field at that moment would move the button out from under the
+   * pointer before the press is finished.
+   */
+  hold(): void {
+    this.#held = true
+  }
+
+  /** Ends a `hold` and validates the fields that were left meanwhile. */
+  release(): void {
+    this.#held = false
+    const left = [...this.#left]
+    this.#left.clear()
+    for (const id of left) this.leave(id)
   }
 
   /**
@@ -147,6 +173,7 @@ export class FormStore {
   /** Every value back to its default, every error cleared. */
   reset(): void {
     this.#unreadable.clear()
+    this.#left.clear()
     for (const spec of this.#fields) {
       const resets = this.get(spec.id).resets + 1
       this.#states.set(spec.id, { value: initialValue(spec), error: null, resets })
