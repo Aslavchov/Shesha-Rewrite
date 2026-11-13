@@ -40,6 +40,17 @@
 }
 
 /*
+ * On a raised surface (a popup), the fill that marks the highlighted or
+ * hovered item is one step stronger. In dark mode the ordinary fill is the
+ * colour of the raised surface itself and would not show at all.
+ */
+[data-slot="popover-content"],
+[data-slot="select-content"] {
+  --muted: var(--sys-color-subtle-hover);
+  --accent: var(--sys-color-subtle-hover);
+}
+
+/*
  * Tailwind theme. The default colour, type, radius and shadow scales are
  * cleared so the only utilities that exist are the ones backed by tokens:
  * `bg-red-500` or `shadow-2xl` simply do not compile. Breakpoints and

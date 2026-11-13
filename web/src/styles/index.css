@@ -19,6 +19,9 @@
 
   html {
     @apply font-sans antialiased;
+    /* Whatever is scrolled into view (a focused field, a link target) stops
+       below the sticky header, not underneath it. */
+    scroll-padding-top: calc(var(--sys-size-header) + var(--sys-space-md));
   }
 
   body {
