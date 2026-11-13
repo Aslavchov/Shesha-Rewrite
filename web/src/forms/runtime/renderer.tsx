@@ -7,7 +7,7 @@ import { FORM_FORMAT_VERSION, type FormDocument } from "@/generated"
 import { controlId, FormContext, type FormContextValue } from "./context"
 import type { FormMode, Registry } from "./definition"
 import { GAP_CLASS } from "./layout"
-import { buildModel, type FormNode } from "./model"
+import { buildModel, type FormModel, type FormNode } from "./model"
 import { ComponentBoundary, ComponentError, UnknownComponent } from "./placeholders"
 import { FormStore } from "./store"
 import type { NestedValues } from "./values"
@@ -37,10 +37,31 @@ export function FormRenderer(props: FormRendererProps) {
   return <KnownForm {...props} />
 }
 
+/** A document made ready to render, with the store that holds its values. */
+type Prepared = {
+  readonly form: FormDocument
+  readonly registry: Registry
+  readonly model: FormModel
+  readonly store: FormStore
+}
+
+function prepare(form: FormDocument, registry: Registry): Prepared {
+  const model = buildModel(form, registry)
+  return { form, registry, model, store: new FormStore(model.fields) }
+}
+
 function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRendererProps) {
   const uid = React.useId()
-  const model = React.useMemo(() => buildModel(form, registry), [form, registry])
-  const store = React.useMemo(() => new FormStore(model.fields), [model])
+
+  // State, not a memo: the store holds what a person has typed, so it must
+  // live exactly as long as the document it was built for.
+  const [prepared, setPrepared] = React.useState(() => prepare(form, registry))
+  let current = prepared
+  if (prepared.form !== form || prepared.registry !== registry) {
+    current = prepare(form, registry)
+    setPrepared(current)
+  }
+  const { model, store } = current
 
   // The handlers are read through a ref so that the context value, and with
   // it every field, does not change when the host passes new functions.
