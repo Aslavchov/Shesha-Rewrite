@@ -5,6 +5,13 @@
 //! `cargo run -p contracts --bin generate-types`.
 
 pub mod codegen;
+pub mod forms;
+
+pub use forms::{
+    ColorToken, ColorValue, ComponentInstance, CreateFormRequest, FORM_FORMAT_VERSION, FontWeight,
+    FormDocument, FormList, FormRecord, FormSummary, Radius, Settings, SlotStyle, Space,
+    UpdateFormRequest,
+};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -75,6 +82,29 @@ pub struct ApiErrorBody {
     pub code: String,
     /// Human-readable explanation.
     pub message: String,
+    /// The individual problems, when there are several with a location.
+    /// Left out when there is nothing to list (ADR 0007).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub details: Option<Vec<ErrorDetail>>,
+}
+
+/// One located problem inside an API error.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ErrorDetail {
+    /// Where the problem is, such as `components[1].regions.col2[0].name`.
+    pub path: String,
+    /// A sentence for a person.
+    pub message: String,
+}
+
+impl ErrorDetail {
+    pub fn new(path: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            path: path.into(),
+            message: message.into(),
+        }
+    }
 }
 
 impl ApiError {
@@ -83,7 +113,14 @@ impl ApiError {
             error: ApiErrorBody {
                 code: code.into(),
                 message: message.into(),
+                details: None,
             },
         }
+    }
+
+    /// Adds located problems. An empty list leaves `details` out.
+    pub fn with_details(mut self, details: Vec<ErrorDetail>) -> Self {
+        self.error.details = (!details.is_empty()).then_some(details);
+        self
     }
 }

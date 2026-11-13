@@ -43,3 +43,14 @@ fn app_name_is_exported_from_the_rust_constant() {
     assert!(files["app.ts"].contains(&expected));
     assert!(files["index.ts"].contains("export { APP_NAME } from \"./app\";"));
 }
+
+#[test]
+fn form_format_version_is_exported_from_the_rust_constant() {
+    let files = codegen::render();
+    let expected = format!(
+        "export const FORM_FORMAT_VERSION = {};",
+        contracts::FORM_FORMAT_VERSION
+    );
+    assert!(files["form.ts"].contains(&expected));
+    assert!(files["index.ts"].contains("export { FORM_FORMAT_VERSION } from \"./form\";"));
+}

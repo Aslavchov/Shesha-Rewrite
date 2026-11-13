@@ -8,12 +8,13 @@ use contracts::{APP_NAME, AppInfo, DbStatus, HealthResponse};
 
 use crate::error::AppError;
 use crate::router::AppState;
-use crate::{build_info, db};
+use crate::{build_info, db, forms};
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health))
         .route("/info", get(info))
+        .merge(forms::router())
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
 }

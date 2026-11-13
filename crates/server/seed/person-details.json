@@ -1,0 +1,145 @@
+{
+  "formatVersion": 1,
+  "name": "Person details",
+  "description": "Demo form covering every Phase 1 component. The Email label is blue on purpose: it shows a style override.",
+  "components": [
+    {
+      "id": "c_k3v9q2m7xa",
+      "type": "columns",
+      "name": "nameRow",
+      "regions": {
+        "col1": [
+          {
+            "id": "c_8r2d5n1wpe",
+            "type": "text-field",
+            "name": "firstName",
+            "bind": "firstName",
+            "settings": { "label": "First name", "required": true, "maxLength": 50 }
+          }
+        ],
+        "col2": [
+          {
+            "id": "c_w6j4z0c3hu",
+            "type": "text-field",
+            "name": "surname",
+            "bind": "surname",
+            "settings": { "label": "Surname", "required": true, "maxLength": 50 }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_p4h7t6b2ys",
+      "type": "text-field",
+      "name": "email",
+      "bind": "email",
+      "settings": {
+        "label": "Email",
+        "placeholder": "name@example.com",
+        "required": true,
+        "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
+        "messages": { "pattern": "Enter a valid email address" }
+      },
+      "styles": { "label": { "color": "#003BB2" } }
+    },
+    {
+      "id": "c_f1m8g5v9dk",
+      "type": "columns",
+      "name": "detailsRow",
+      "regions": {
+        "col1": [
+          {
+            "id": "c_q7x2n4s6bl",
+            "type": "date-picker",
+            "name": "dateOfBirth",
+            "bind": "dateOfBirth",
+            "settings": { "label": "Date of birth", "required": true, "minDate": "1900-01-01" }
+          }
+        ],
+        "col2": [
+          {
+            "id": "c_t9e3a5r1jm",
+            "type": "number-field",
+            "name": "dependants",
+            "bind": "dependants",
+            "settings": {
+              "label": "Number of dependants",
+              "helpText": "Children and other people who rely on you financially.",
+              "wholeNumber": true,
+              "min": 0,
+              "max": 20
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_y2u6i8o4pz",
+      "type": "select",
+      "name": "preferredContact",
+      "bind": "contact.preferredMethod",
+      "settings": {
+        "label": "Preferred contact method",
+        "required": true,
+        "options": [
+          { "label": "Email", "value": "email" },
+          { "label": "Phone", "value": "phone" },
+          { "label": "Post", "value": "post" }
+        ]
+      }
+    },
+    {
+      "id": "c_d5c1x7w3nq",
+      "type": "text-area",
+      "name": "notes",
+      "bind": "notes",
+      "settings": { "label": "Notes", "maxLength": 500 }
+    },
+    {
+      "id": "c_h0b4k2g6vt",
+      "type": "container",
+      "name": "preferences",
+      "settings": { "title": "Preferences" },
+      "regions": {
+        "content": [
+          {
+            "id": "c_l8s3f7j9ra",
+            "type": "switch",
+            "name": "subscribe",
+            "bind": "preferences.subscribe",
+            "settings": { "label": "Subscribe to updates", "defaultValue": true }
+          },
+          {
+            "id": "c_m1z5e9y3cw",
+            "type": "checkbox",
+            "name": "acceptTerms",
+            "bind": "preferences.acceptTerms",
+            "settings": { "label": "I accept the terms", "required": true }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_n6a2p8d4xu",
+      "type": "container",
+      "name": "actions",
+      "settings": { "direction": "horizontal" },
+      "regions": {
+        "content": [
+          {
+            "id": "c_v3q7h1t5ob",
+            "type": "button",
+            "name": "submit",
+            "settings": { "label": "Submit" }
+          },
+          {
+            "id": "c_r9w4b6m2ge",
+            "type": "button",
+            "name": "reset",
+            "settings": { "label": "Reset", "action": "reset", "variant": "outline" }
+          }
+        ]
+      }
+    }
+  ]
+}
