@@ -135,6 +135,7 @@ Changes to Phase 0 code, beyond adding to it:
 - `index.css`: the input-group focus rule; `scroll-padding-top`, so a field focused after a failed submit is not hidden under the sticky header.
 - `Page` takes an optional breadcrumb and actions. The sidebar keeps a section current on its sub-pages.
 - Phase 0 tests that expected Forms to be an upcoming page were updated. No Phase 0 test was removed.
+- **Server shutdown race fixed.** The server printed its address before installing its Ctrl+C and SIGTERM handlers, so a signal sent as soon as the address appeared killed the process instead of stopping it cleanly. The handlers are now installed first (`ShutdownSignal::install` in `serve.rs`). See the CI results below for how it surfaced.
 
 ## Deferred
 
@@ -184,10 +185,19 @@ Creating a form through the API is shown in the README.
 | Release build (static musl, 6.0 MB) and smoke test | Pass |
 | Playwright, 72 tests against the release binary | Pass, two runs in a row |
 
-One earlier run had a single failure in a Phase 0 test ("shuts down cleanly on Ctrl+C") while four subagents were running their own test suites on the same machine. It passed when re-run alone and in every run since. I have not seen it fail on an idle machine.
-
 **GitHub Actions**
 
-See the pull request's Checks tab for the run on the current head. The result is recorded here once the run has finished.
+Pull request: [Aslavchov/Shesha-Rewrite#2](https://github.com/Aslavchov/Shesha-Rewrite/pull/2).
+
+First run: [run 43412931716](https://github.com/Aslavchov/Shesha-Rewrite/actions/runs/43412931716), on commit `930257f`. It failed in one place: the end-to-end job, 71 of 72, on the Phase 0 test "shuts down cleanly on Ctrl+C". The process had been killed by SIGINT instead of exiting with code 0. All 35 new Phase 1 end-to-end tests passed in that run.
+
+The cause was the shutdown race described above, which has been in the server since Phase 0 and had so far been won by luck. I had seen the same failure once locally while the machine was busy and wrongly put it down to load. Repeating the test 200 times with 8 workers made it plain:
+
+| Build | "shuts down cleanly on Ctrl+C", 200 runs |
+| --- | --- |
+| Before the fix | 121 passed, 79 failed |
+| After the fix | 200 passed |
+
+The result of the run on the commit with the fix is on the pull request's Checks tab. Per CLAUDE.md, the phase is not reported done unless the run on the current head is green.
 
 Still open for the phase to be accepted: the manual pass of the checks in section 13 in Chrome, C1-13 and C1-20 by eye, and a decision on deviation 9.
