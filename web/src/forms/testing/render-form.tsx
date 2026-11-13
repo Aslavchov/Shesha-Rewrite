@@ -105,3 +105,14 @@ export function renderDocument(
 export const fieldRoot = (name: string) => screen.getByTestId(`field-${name}`)
 export const fieldError = (name: string) => screen.queryByTestId(`field-${name}-error`)
 export const fieldValue = (name: string) => screen.getByTestId(`field-${name}-value`)
+
+/**
+ * The test ids of every instance on screen, in document order. An instance's
+ * own id is `field-<name>`; the parts inside it (`-control`, `-error`, …)
+ * carry a suffix, which a name, being an identifier, never contains.
+ */
+export function instanceOrder(): string[] {
+  return [...screen.getByTestId("form").querySelectorAll("[data-testid^=field-]")]
+    .map((element) => element.getAttribute("data-testid") ?? "")
+    .filter((id) => /^field-[^-]+$/.test(id))
+}

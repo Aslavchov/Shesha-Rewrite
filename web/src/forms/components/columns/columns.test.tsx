@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest"
 
 import type { ComponentInstance } from "@/generated"
 
-import { fieldRoot, fieldValue, instance, renderForm } from "../../testing/render-form"
+import {
+  fieldRoot,
+  fieldValue,
+  instance,
+  instanceOrder,
+  renderForm,
+} from "../../testing/render-form"
 import { button } from "../button"
 import { textField } from "../text-field"
 import { columns } from "."
@@ -116,10 +122,7 @@ describe("columns: default render", () => {
     expect([...(right?.children ?? [])]).toEqual([fieldRoot("third")])
     expect(templateOf("row")).toBe("minmax(0, 1fr) minmax(0, 1fr)")
 
-    const order = [...screen.getByTestId("form").querySelectorAll("[data-testid^=field-]")].map(
-      (element) => element.getAttribute("data-testid"),
-    )
-    expect(order).toEqual([
+    expect(instanceOrder()).toEqual([
       "field-before",
       "field-row",
       "field-first",

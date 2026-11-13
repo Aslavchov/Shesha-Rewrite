@@ -69,12 +69,22 @@ export function SelectEdit({
             <SelectGroup>
               {isRequired ? null : (
                 // An optional select can be cleared: this item's value is "no value".
-                <SelectItem value={null} className="text-muted-foreground" {...slot.item}>
+                <SelectItem
+                  value={null}
+                  data-testid={`field-${instance.name}-option`}
+                  className="text-muted-foreground"
+                  {...slot.item}
+                >
                   {prompt}
                 </SelectItem>
               )}
               {options.map((option) => (
-                <SelectItem key={option.value} value={option.value} {...slot.item}>
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  data-testid={`field-${instance.name}-option`}
+                  {...slot.item}
+                >
                   {option.label}
                 </SelectItem>
               ))}

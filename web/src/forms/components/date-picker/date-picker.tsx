@@ -99,7 +99,12 @@ export function DatePickerEdit({
             >
               <PopoverTrigger
                 render={
-                  <InputGroupButton size="icon-xs" aria-label="Choose date" {...slot.trigger} />
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="Choose date"
+                    data-testid={`field-${instance.name}-trigger`}
+                    {...slot.trigger}
+                  />
                 }
               >
                 <CalendarIcon aria-hidden="true" />

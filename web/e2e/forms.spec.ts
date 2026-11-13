@@ -109,7 +109,7 @@ test.describe("C1-2 All components render", () => {
       .evaluateAll((elements) =>
         elements
           .map((element) => element.getAttribute("data-testid") ?? "")
-          .filter((id) => !/-(error|value|popup)$/.test(id)),
+          .filter((id) => /^field-[^-]+$/.test(id)),
       )
     expect(order).toEqual(INSTANCES.map((name) => `field-${name}`))
 
@@ -656,7 +656,12 @@ function focused(page: Page) {
     const group = element.closest("[data-slot=input-group]")
     const ringOwner = group && element.matches("[data-slot=input-group-control]") ? group : element
     const style = getComputedStyle(ringOwner)
-    const owner = element.closest("[data-testid^=field-]")
+    // The instance it belongs to: the nearest `field-<name>`, past the test
+    // ids of the parts inside it (`field-<name>-control` and the like).
+    let owner: Element | null = element
+    while (owner && !/^field-[^-]+$/.test(owner.getAttribute("data-testid") ?? "")) {
+      owner = owner.parentElement
+    }
     return {
       instance: owner?.getAttribute("data-testid")?.replace(/^field-/, "") ?? null,
       hasRing:

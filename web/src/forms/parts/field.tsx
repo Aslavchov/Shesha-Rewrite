@@ -20,6 +20,8 @@ type FieldSlots = Slots<"label" | "description"> & { readonly error?: SlotProps 
 /** The attributes for the control itself. */
 export type ControlProps = {
   id: string
+  /** `field-<name>-control`: the element a person types into or presses. */
+  "data-testid": string
   "aria-invalid": true | undefined
   "aria-required": true | undefined
   "aria-describedby": string | undefined
@@ -38,13 +40,14 @@ type SharedProps = {
   children: (control: ControlProps) => React.ReactNode
 }
 
-function controlProps({ field, required, helpText }: SharedProps): ControlProps {
+function controlProps({ name, field, required, helpText }: SharedProps): ControlProps {
   const describedBy = [
     helpText === null ? null : field.descriptionId,
     field.error === null ? null : field.errorId,
   ].filter((id) => id !== null)
   return {
     id: field.id,
+    "data-testid": `field-${name}-control`,
     "aria-invalid": field.error === null ? undefined : true,
     "aria-required": required ? true : undefined,
     "aria-describedby": describedBy.length > 0 ? describedBy.join(" ") : undefined,

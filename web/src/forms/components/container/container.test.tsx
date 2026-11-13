@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest"
 
 import type { ComponentInstance } from "@/generated"
 
-import { fieldRoot, fieldValue, instance, renderForm } from "../../testing/render-form"
+import {
+  fieldRoot,
+  fieldValue,
+  instance,
+  instanceOrder,
+  renderForm,
+} from "../../testing/render-form"
 import { button } from "../button"
 import { textField } from "../text-field"
 import { container } from "."
@@ -27,12 +33,7 @@ function containerInstance(
 const field = (name: string, label = name) => instance("text-field", name, { label })
 const submitButton = (name: string) => instance("button", name, {}, { bind: null })
 
-/** The test ids of every instance on screen, in document order. */
-function renderedOrder() {
-  return [...screen.getByTestId("form").querySelectorAll("[data-testid^=field-]")].map((element) =>
-    element.getAttribute("data-testid"),
-  )
-}
+const renderedOrder = instanceOrder
 
 /** The element that lays the children out: the root, or the box under the title. */
 function contentOf(name: string): Element {

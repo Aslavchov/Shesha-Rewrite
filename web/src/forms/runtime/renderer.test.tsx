@@ -11,6 +11,7 @@ import {
   fieldRoot,
   formDocument,
   instance,
+  instanceOrder,
   renderDocument,
   renderForm,
 } from "../testing/render-form"
@@ -471,10 +472,7 @@ describe("layout", () => {
       [probe, box],
     )
 
-    const order = [...screen.getByTestId("form").querySelectorAll("[data-testid^=field-]")].map(
-      (element) => element.getAttribute("data-testid"),
-    )
-    expect(order).toEqual(["field-a", "field-group", "field-b", "field-c", "field-d"])
+    expect(instanceOrder()).toEqual(["field-a", "field-group", "field-b", "field-c", "field-d"])
     expect(fieldRoot("group")).toContainElement(fieldRoot("b"))
   })
 })

@@ -26,6 +26,23 @@ in docs/specs/ and a report in docs/reports/.
   { "error": { "code": "...", "message": "..." } }.
 - The server binds to 127.0.0.1 unless told otherwise.
 
+## Forms
+- A form is a JSON document: ADR 0003. Its structure lives in crates/contracts;
+  what goes inside `settings` lives with each component.
+- web/src/forms/runtime is the component contract, the form store and the
+  renderer. web/src/forms/parts is what inputs share (label, help text, error,
+  read-only value).
+- One folder per component in web/src/forms/components: `index.ts` (the
+  definition), `settings.ts`, the renderers, and tests. Registering it is one
+  line in web/src/forms/registry.ts. Nothing outside a component's folder names
+  its type.
+- Components never build styles. They spread the `slots.*` props they are
+  given; web/src/forms/runtime/styles.ts is the only place a document's style
+  values become CSS (ADR 0006).
+- Frozen by Phase 1 (ADRs 0003 to 0007): the document format, the component
+  contract, value types, name and data path rules, the slot style model, the
+  forms API and the error shape's `details`.
+
 ## Styling
 - web/src/styles/tokens.css is the single source of design values.
 - Components use tokens only: no raw colours, sizes or shadows in components.
@@ -50,6 +67,8 @@ in docs/specs/ and a report in docs/reports/.
 - Every interactive or checked element has a data-testid in kebab-case,
   area-element.
 - Every user-visible behaviour in a phase spec gets an end-to-end test.
+- Unit tests fail on any console.error or console.warn. A test that expects
+  one calls `expectConsoleProblems()` from web/src/test/console.ts.
 - Do not report a phase done until CI is green.
 
 ## Quality
@@ -69,7 +88,8 @@ Rust (rust-toolchain.toml installs the right version by itself).
 - `node scripts/check.mjs`: run every check CI runs except the end-to-end
   tests. Name groups to run only some: `web`, `server`, `types`, `style`.
 - `node scripts/e2e.mjs`: run the Playwright tests against the binary that
-  `build.mjs` produced.
+  `build.mjs` produced. While iterating, `--binary target/debug/shesha2` uses
+  a debug build (`cargo build -p server`), which serves web/dist from disk.
 - `node scripts/generate-types.mjs`: regenerate web/src/generated/ after
   changing a type in crates/contracts. Commit the result.
 - `npm run format` (in web/): format the frontend and the scripts.
