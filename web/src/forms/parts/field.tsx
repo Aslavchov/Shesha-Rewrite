@@ -27,9 +27,14 @@ export type ControlProps = {
   "aria-describedby": string | undefined
 }
 
+/** How much of a length limit is used. */
+export type CharacterCount = { readonly length: number; readonly max: number }
+
 type SharedProps = {
   /** The instance name: the suffix of the `field-<name>-error` test id. */
   name: string
+  /** Shown under the control, at its end. For text controls with a maximum length. */
+  count?: CharacterCount
   /** The ids and the current error; the shared parts never touch the value. */
   field: Pick<FieldApi<unknown>, "id" | "descriptionId" | "errorId" | "error">
   label: string
@@ -40,10 +45,13 @@ type SharedProps = {
   children: (control: ControlProps) => React.ReactNode
 }
 
-function controlProps({ name, field, required, helpText }: SharedProps): ControlProps {
+const countId = (field: SharedProps["field"]) => `${field.id}-count`
+
+function controlProps({ name, field, required, helpText, count }: SharedProps): ControlProps {
   const describedBy = [
     helpText === null ? null : field.descriptionId,
     field.error === null ? null : field.errorId,
+    count === undefined ? null : countId(field),
   ].filter((id) => id !== null)
   return {
     id: field.id,
@@ -68,8 +76,8 @@ function Label({ field, label, required, slots }: SharedProps) {
   )
 }
 
-function Messages({ name, field, helpText, slots }: SharedProps) {
-  return (
+function Messages({ name, field, helpText, slots, count }: SharedProps) {
+  const messages = (
     <>
       <FieldError id={field.errorId} data-testid={`field-${name}-error`} {...slots.error}>
         {field.error}
@@ -80,6 +88,25 @@ function Messages({ name, field, helpText, slots }: SharedProps) {
         </FieldDescription>
       )}
     </>
+  )
+  if (count === undefined) return messages
+
+  // The count sits at the end of the row the messages start; they wrap beside it.
+  const isOver = count.length > count.max
+  return (
+    <div data-slot="field-footer" className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">{messages}</div>
+      <p
+        id={countId(field)}
+        data-slot="field-count"
+        data-testid={`field-${name}-count`}
+        data-over={isOver ? "true" : undefined}
+        className="ml-auto shrink-0 text-sm text-muted-foreground tabular-nums data-over:font-medium data-over:text-destructive"
+      >
+        {count.length} / {count.max}
+        <span className="sr-only"> characters</span>
+      </p>
+    </div>
   )
 }
 

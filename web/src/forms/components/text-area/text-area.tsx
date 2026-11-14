@@ -3,11 +3,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { StackedField } from "../../parts/field"
 import { ReadOnlyField } from "../../parts/read-only"
 import type { InputEditProps, InputReadOnlyProps } from "../../runtime"
+import { lengthOf } from "../../runtime/rules"
 import type { settings, Slot } from "./settings"
 
 export function TextAreaEdit({
   instance,
-  settings: { label, helpText, placeholder, required: isRequired, rows },
+  settings: { label, helpText, placeholder, required: isRequired, maxLength, rows },
   slots: slot,
   field,
 }: InputEditProps<"text", typeof settings, Slot>) {
@@ -19,6 +20,10 @@ export function TextAreaEdit({
       required={isRequired}
       helpText={helpText}
       slots={slot}
+      // Counted the way the maxLength rule counts, so the two always agree.
+      count={
+        maxLength === null ? undefined : { length: lengthOf(field.value ?? ""), max: maxLength }
+      }
     >
       {(control) => (
         // No native maxLength: text over the limit stays, with the rule's

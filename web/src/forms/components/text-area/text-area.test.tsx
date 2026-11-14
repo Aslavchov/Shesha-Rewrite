@@ -312,3 +312,69 @@ describe("text area: keyboard", () => {
     expect(screen.getByRole("textbox", { name: "Notes" })).toHaveValue("One")
   })
 })
+
+describe("text area: character count", () => {
+  const count = () => screen.queryByTestId("field-notes-count")
+
+  it("shows no count without a maximum length", () => {
+    renderTextArea()
+    expect(count()).not.toBeInTheDocument()
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby")
+  })
+
+  it("shows how much of the maximum length is used, and keeps up while typing", async () => {
+    const { user } = renderTextArea({ maxLength: 20 })
+    expect(count()).toHaveTextContent("0 / 20 characters")
+
+    await user.type(screen.getByRole("textbox"), "Hello")
+    expect(count()).toHaveTextContent("5 / 20 characters")
+
+    await user.clear(screen.getByRole("textbox"))
+    expect(count()).toHaveTextContent("0 / 20 characters")
+  })
+
+  it("counts the default value", () => {
+    renderTextArea({ maxLength: 20, defaultValue: "Already here" })
+    expect(count()).toHaveTextContent("12 / 20 characters")
+  })
+
+  it("counts characters the way the maximum length rule does", async () => {
+    // One character each, though each is two UTF-16 units.
+    const { user, submit } = renderTextArea({ maxLength: 2 })
+    await user.type(screen.getByRole("textbox"), "😀😀")
+    expect(count()).toHaveTextContent("2 / 2 characters")
+    submit()
+    expect(fieldError("notes")).not.toBeInTheDocument()
+  })
+
+  it("marks the count when the text is over the limit", async () => {
+    const { user } = renderTextArea({ maxLength: 3 })
+    await user.type(screen.getByRole("textbox"), "abc")
+    expect(count()).not.toHaveAttribute("data-over")
+
+    await user.type(screen.getByRole("textbox"), "d")
+    expect(count()).toHaveTextContent("4 / 3 characters")
+    expect(count()).toHaveAttribute("data-over", "true")
+  })
+
+  it("describes the control, along with the help text and the error", async () => {
+    const { user } = renderTextArea({ maxLength: 3, helpText: "Keep it short." })
+    const control = screen.getByRole("textbox")
+    const ids = () => (control.getAttribute("aria-describedby") ?? "").split(" ")
+    expect(ids()).toContain(count()?.id)
+    expect(ids()).toHaveLength(2)
+
+    await user.type(control, "abcd")
+    await user.tab()
+    expect(fieldError("notes")).toHaveTextContent("Enter no more than 3 characters")
+    expect(ids()).toContain(count()?.id)
+    expect(ids()).toHaveLength(3)
+  })
+
+  it("is not shown in read-only mode", () => {
+    renderForm([instance("text-area", "notes", { maxLength: 20 })], definitions, {
+      mode: "read-only",
+    })
+    expect(count()).not.toBeInTheDocument()
+  })
+})
