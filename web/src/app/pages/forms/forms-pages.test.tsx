@@ -151,7 +151,7 @@ describe("/forms/<id>", () => {
     expect(headings[0]).toHaveTextContent("Contact")
     expect(screen.getByTestId("page-description")).toHaveTextContent("How to reach you.")
     await waitFor(() => expect(document.title).toBe(`Contact · ${APP_NAME}`))
-    expect(screen.getByTestId("header-title")).toHaveTextContent("Forms")
+    expect(screen.queryByTestId("header-title")).not.toBeInTheDocument()
     expect(screen.getByTestId("nav-forms")).toHaveAttribute("aria-current", "page")
     expect(screen.getByRole("textbox", { name: "Full name" })).toBeInTheDocument()
     expect(screen.getByTestId("form-mode-edit")).toHaveAttribute("aria-pressed", "true")

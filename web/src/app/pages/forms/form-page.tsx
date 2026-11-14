@@ -1,9 +1,10 @@
 import * as React from "react"
-import { ChevronLeftIcon, CircleCheckIcon, FileQuestionIcon } from "lucide-react"
+import { ChevronLeftIcon, FileQuestionIcon } from "lucide-react"
 import { Link, useParams } from "react-router"
 
+import { Submission } from "@/components/submission"
 import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -66,62 +67,26 @@ function LoadedForm({ form }: { form: FormRecord }) {
   const name = typeof form.document.name === "string" ? form.document.name : "Form"
 
   return (
-    <Page
-      title={name}
-      description={form.document.description}
-      breadcrumb={<BackToForms />}
-      actions={<ModeSwitch mode={mode} onChange={setMode} />}
-    >
+    <Page title={name} description={form.document.description} breadcrumb={<BackToForms />}>
       <div className="flex max-w-2xl flex-col gap-6">
-        <Card>
-          <CardContent>
-            <FormRenderer
-              document={form.document}
-              registry={registry}
-              mode={mode}
-              onSubmit={setSubmitted}
-              onReset={() => setSubmitted(null)}
-            />
-          </CardContent>
-        </Card>
+        {/* The switch sits on the form it controls. */}
+        <div className="flex flex-col gap-2">
+          <ModeSwitch mode={mode} onChange={setMode} />
+          <Card>
+            <CardContent>
+              <FormRenderer
+                document={form.document}
+                registry={registry}
+                mode={mode}
+                onSubmit={setSubmitted}
+                onReset={() => setSubmitted(null)}
+              />
+            </CardContent>
+          </Card>
+        </div>
         {submitted === null ? null : <Submission values={submitted} />}
       </div>
     </Page>
-  )
-}
-
-/** What the form handed over on its last valid submit. Nothing is stored. */
-function Submission({ values }: { values: NestedValues }) {
-  return (
-    <>
-      {/* <output> is a live region: the message is announced when it appears. */}
-      <output
-        data-testid="form-submit-success"
-        className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 font-medium text-foreground"
-      >
-        <CircleCheckIcon aria-hidden="true" className="size-4 shrink-0 text-primary" />
-        Form submitted. Every field is valid.
-      </output>
-      <Card>
-        <CardHeader>
-          <CardTitle>Submitted data</CardTitle>
-          <CardDescription>
-            The values the form handed over, nested by data path. Nothing is stored.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <pre
-            data-testid="form-submitted-data"
-            // Scrolls sideways when a value is long, so it must be reachable by keyboard.
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-            tabIndex={0}
-            className="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs leading-relaxed text-foreground"
-          >
-            {JSON.stringify(values, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
-    </>
   )
 }
 
