@@ -5,7 +5,8 @@ Shesha 2.0 is a low-code builder for CRUD applications: forms built with a drag-
 This repository is the v1 prototype, built in phases (see the [roadmap](docs/roadmap.md)).
 
 - **Phase 0** is the walking skeleton: an app shell with working navigation, the design-token foundation, a light Rust server, and CI that produces one downloadable binary each for Linux, Windows and macOS.
-- **Phase 1** defines what a form is and renders it: the form document format, the component contract, ten components, validation, edit and read-only modes, and forms stored on the server and listed on the Forms page. There is no designer yet: `--demo` seeds a sample form, and other forms are created through the API.
+- **Phase 1** defines what a form is and renders it: the form document format, the component contract, ten components, validation, edit and read-only modes, and forms stored on the server and listed on the Forms page.
+- **Phase 2** is the designer's canvas: create a form, drag components onto it, nest them, rearrange them, and it saves itself. Everything works from the keyboard too. Editing a component's settings and styles comes in Phase 3; until then a component keeps its defaults.
 
 "Shesha 2.0" and the binary name `shesha2` are working names.
 
@@ -14,8 +15,9 @@ This repository is the v1 prototype, built in phases (see the [roadmap](docs/roa
 Nothing is installed on your machine. The binary keeps its data in a `shesha2-data` folder that it creates next to itself.
 
 1. Get the binary for your system:
-   - **From a release:** open the repository's Releases page and download `shesha2-linux-x86_64`, `shesha2-macos-arm64` or `shesha2-windows-x86_64.exe`.
-   - **From a pull request or commit:** open its CI run under Actions, and download the artifact `shesha2-linux-x86_64`, `shesha2-macos-arm64` or `shesha2-windows-x86_64`. It arrives as a zip; unzip it to get `shesha2` (`shesha2.exe` on Windows).
+   - **Linux, from a release:** open the repository's Releases page and download `shesha2-linux-x86_64`. Until the final phase, releases carry the Linux binary only.
+   - **Linux, from a pull request or commit:** open its CI run under Actions, and download the artifact `shesha2-linux-x86_64`. It arrives as a zip; unzip it to get `shesha2`.
+   - **Windows and macOS:** these are built only when someone asks. Open Actions, choose the **CI** workflow, press **Run workflow** and pick the branch. When the run finishes it has three artifacts: `shesha2-linux-x86_64`, `shesha2-macos-arm64` and `shesha2-windows-x86_64`, each a zip holding `shesha2` (`shesha2.exe` on Windows).
 2. Run it as shown below. It prints one line with its address, for example `Shesha 2.0 running at http://localhost:7400`.
 3. Open that address in a browser. Press Ctrl+C in the terminal to stop.
 
@@ -72,7 +74,20 @@ The server listens on `127.0.0.1` only, so it is reachable from this computer an
 
 Start with `--demo` and open **Forms** to find "Person details", a form that uses every component. Fill it in and submit it to see the values it hands over; switch to Read-only to see them as text.
 
-Until the designer exists, other forms are created through the API. A form is a JSON document ([ADR 0003](docs/adr/0003-form-document.md)):
+### The designer
+
+Press **New form** on the Forms page, give the form a name, and it opens in the designer. **Open in designer** on any form in the list does the same for an existing one, and **Designer** in the sidebar lists the forms to open.
+
+- **Add** a component by dragging it from the toolbox onto the canvas or into the outline, or by pressing it: it lands after the selected component, or at the end of the form.
+- **Move** a component by dragging it, on the canvas or in the outline. A line shows exactly where it will land. A container cannot be dropped into itself; where a drop is refused, no line is shown.
+- **Select** by pressing a component on the canvas or in the outline. Delete and Duplicate act on the selection. Undo and Redo cover every change.
+- **Preview** shows the form as people will use it. **Design** returns to the canvas as you left it.
+- Changes **save themselves** a moment after the last edit; the status beside the form's name says so. If the form was changed somewhere else in the meantime, the designer stops saving, says so, and offers to reload.
+- **From the keyboard:** Tab moves between the toolbox, the canvas and the outline; Enter on a toolbox item adds it; the arrow keys select; Alt+↑ and Alt+↓ move the selection up and down, into and out of containers. The keyboard button in the toolbar lists every shortcut.
+
+### The forms API
+
+Forms can also be created and changed through the API. A form is a JSON document ([ADR 0003](docs/adr/0003-form-document.md)):
 
 ```bash
 curl -X POST http://localhost:7400/api/forms -H "Content-Type: application/json" -d '{
@@ -109,6 +124,7 @@ You need [Node](https://nodejs.org) (the version in `.node-version`) and [Rust](
 | `node scripts/dev.mjs` | Run for development: the Rust server plus the Vite dev server, with `/api` proxied. Open the Vite address it prints. |
 | `node scripts/build.mjs` | Build the release binary: the frontend first, then the server with the frontend embedded. Output: `dist/shesha2-<os>-<arch>/`. CI uses this same command. |
 | `node scripts/check.mjs` | Run the checks CI runs: typecheck, lint, unit tests and build for the frontend; format, clippy and tests for the server; generated types; style guard. Pass `web`, `server`, `types` or `style` to run one group. |
+| `node scripts/smoke.mjs` | Start the binary built by `build.mjs`, check that it answers, and stop it. |
 | `node scripts/e2e.mjs` | Run the Playwright end-to-end tests against the binary built by `build.mjs`. First time: `npx playwright install chromium` in `web/`. |
 | `node scripts/generate-types.mjs` | Regenerate `web/src/generated/` from the Rust types in `crates/contracts`. CI fails if the committed files are out of date. |
 
@@ -117,6 +133,8 @@ On Linux the release build is static and needs the musl C compiler:
 ```bash
 sudo apt-get install musl-tools
 ```
+
+Pull requests and pushes to `main` run the checks, the Linux build with its smoke test, and the end-to-end tests on Linux. Windows and macOS builds run only when the CI workflow is started by hand from the Actions tab.
 
 ## Repository layout
 
@@ -135,6 +153,10 @@ sudo apt-get install musl-tools
 │   │   │   ├── parts/        # label, help text, error and read-only value, shared by inputs
 │   │   │   ├── components/   # one folder per component
 │   │   │   └── registry.ts   # one line per component
+│   │   ├── designer/
+│   │   │   ├── model/        # the editing model: operations, commands, undo history, the server's rules
+│   │   │   ├── drag/         # drag and drop on Pointer Events
+│   │   │   └── *.tsx         # canvas, outline, toolbox, properties, toolbar
 │   │   ├── components/ui/    # shadcn/ui sources (owned, editable)
 │   │   ├── styles/tokens.css # the single source of design values
 │   │   └── generated/        # ts-rs output, never edited by hand
@@ -152,6 +174,7 @@ sudo apt-get install musl-tools
 - [Roadmap](docs/roadmap.md): the phases of v1
 - [Phase 0 spec](docs/specs/phase-0.md) and [Phase 0 report](docs/reports/phase-0.md)
 - [Phase 1 spec](docs/specs/phase-1.md) and [Phase 1 report](docs/reports/phase-1.md)
+- [Phase 2 spec](docs/specs/phase-2.md) and [Phase 2 report](docs/reports/phase-2.md)
 - [ADR 0001: the stack](docs/adr/0001-stack.md)
 - [ADR 0002: design tokens](docs/adr/0002-tokens.md)
 - [ADR 0003: the form document format](docs/adr/0003-form-document.md)
@@ -159,3 +182,4 @@ sudo apt-get install musl-tools
 - [ADR 0005: form state and validation](docs/adr/0005-form-state-and-validation.md)
 - [ADR 0006: how style overrides reach a component's slots](docs/adr/0006-slot-styles.md)
 - [ADR 0007: the error shape's `details` field, and the forms API](docs/adr/0007-error-details-and-forms-api.md)
+- [ADR 0008: the designer](docs/adr/0008-designer.md)

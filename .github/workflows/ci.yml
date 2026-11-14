@@ -1,10 +1,17 @@
 name: CI
 
+# Pull requests and pushes to main run the lean set: the checks, the Linux
+# release build with its smoke test, and the end-to-end suite on Linux.
+#
+# Windows and macOS are built only when the workflow is started by hand from
+# the Actions tab ("Run workflow"). That run builds and smoke-tests all three
+# binaries and uploads them as artifacts.
 on:
   pull_request:
   push:
     branches: [main]
     tags: ["phase-*"]
+  workflow_dispatch:
 
 # A newer push to the same pull request replaces the run in progress.
 concurrency:
@@ -74,13 +81,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - label: Linux x86_64, static
-            os: ubuntu-latest
-          - label: Windows x86_64
-            os: windows-latest
-          - label: macOS Apple Silicon
-            os: macos-latest
+        # Linux always. Windows and macOS only on a run started by hand.
+        include: >-
+          ${{ fromJSON(github.event_name == 'workflow_dispatch'
+          && '[{"label":"Linux x86_64, static","os":"ubuntu-latest"},{"label":"Windows x86_64","os":"windows-latest"},{"label":"macOS Apple Silicon","os":"macos-latest"}]'
+          || '[{"label":"Linux x86_64, static","os":"ubuntu-latest"}]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -156,20 +161,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download the three binaries
+      # Until the final phase a release carries the Linux binary only: it is
+      # the one a tag builds, and the one the end-to-end suite has run against.
+      - name: Download the Linux binary
         uses: actions/download-artifact@v8
         with:
+          pattern: "*-linux-x86_64"
           path: artifacts
-      - name: Name each binary after its platform
+      - name: Name the binary after its platform
         run: |
           mkdir release
           for dir in artifacts/*/; do
             artifact="$(basename "$dir")"
             file="$(find "$dir" -type f | head -n 1)"
-            case "$file" in
-              *.exe) cp "$file" "release/$artifact.exe" ;;
-              *) cp "$file" "release/$artifact" ;;
-            esac
+            cp "$file" "release/$artifact"
           done
           ls -l release
       - name: Create the release
