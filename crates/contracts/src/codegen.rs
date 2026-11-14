@@ -62,7 +62,9 @@ pub fn render() -> Files {
 
     let mut barrel = header();
     barrel.push_str("export { APP_NAME } from \"./app\";\n");
-    barrel.push_str("export { FORM_FORMAT_VERSION } from \"./form\";\n");
+    barrel.push_str(
+        "export { FORM_FORMAT_VERSION, MAX_JSON_DEPTH, MAX_REQUEST_BYTES } from \"./form\";\n",
+    );
     for name in types.keys() {
         barrel.push_str(&format!("export type {{ {name} }} from \"./{name}\";\n"));
     }
@@ -84,9 +86,11 @@ pub fn render() -> Files {
     files.insert(
         format!("form.{EXTENSION}"),
         format!(
-            "{}export const FORM_FORMAT_VERSION = {};\n",
+            "{}export const FORM_FORMAT_VERSION = {};\nexport const MAX_JSON_DEPTH = {};\nexport const MAX_REQUEST_BYTES = {};\n",
             header(),
-            crate::FORM_FORMAT_VERSION
+            crate::FORM_FORMAT_VERSION,
+            crate::MAX_JSON_DEPTH,
+            crate::MAX_REQUEST_BYTES
         ),
     );
     files.insert(format!("index.{EXTENSION}"), barrel);

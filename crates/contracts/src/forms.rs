@@ -13,6 +13,20 @@ use ts_rs::TS;
 /// The one format version this build reads and writes.
 pub const FORM_FORMAT_VERSION: u32 = 1;
 
+/// How deep the JSON of a request body may nest: objects and arrays inside
+/// one another, counting the body itself as level 1. This is the server's
+/// nesting limit for forms. A top-level component sits at level 4 and each
+/// level of containers adds 3, so components nest about 41 deep.
+///
+/// The number is the JSON parser's own limit, written down so the designer
+/// can refuse a drop the server would refuse (ADR 0008). A server test fails
+/// if the parser and this constant ever disagree.
+pub const MAX_JSON_DEPTH: u32 = 127;
+
+/// The largest request body the API reads, in bytes. Anything longer is
+/// answered with 413 `payload_too_large`.
+pub const MAX_REQUEST_BYTES: u32 = 2 * 1024 * 1024;
+
 /// Settings as stored: only what differs from the defaults, as JSON values
 /// that the owning component type defines.
 pub type Settings = Map<String, Value>;

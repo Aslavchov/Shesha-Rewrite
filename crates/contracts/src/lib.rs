@@ -9,8 +9,8 @@ pub mod forms;
 
 pub use forms::{
     ColorToken, ColorValue, ComponentInstance, CreateFormRequest, FORM_FORMAT_VERSION, FontWeight,
-    FormDocument, FormList, FormRecord, FormSummary, Radius, Settings, SlotStyle, Space,
-    UpdateFormRequest,
+    FormDocument, FormList, FormRecord, FormSummary, MAX_JSON_DEPTH, MAX_REQUEST_BYTES, Radius,
+    Settings, SlotStyle, Space, UpdateFormRequest,
 };
 
 use serde::{Deserialize, Serialize};
