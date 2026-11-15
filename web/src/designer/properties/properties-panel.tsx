@@ -13,6 +13,7 @@ import type { EditorContext } from "./editors"
 import { FormProperties } from "./form-properties"
 import { IdentitySection } from "./identity"
 import { ProblemsList } from "./problems-list"
+import { useEpoch } from "./panel-run"
 import { PanelSection } from "./property-row"
 import { SettingsEditor } from "./settings-editor"
 
@@ -78,6 +79,7 @@ function InstanceProperties({ node, outline }: { node: OutlineNode; outline: Out
   const { instance, definition } = node
   const Icon = definition?.icon ?? CircleHelpIcon
   const problems = problemsOf(node)
+  const epoch = useEpoch()
 
   // The part pointed at belongs to this selection: let it go with it.
   React.useEffect(() => () => store.setHighlight(null), [store])
@@ -148,6 +150,12 @@ function InstanceProperties({ node, outline }: { node: OutlineNode; outline: Out
                 })
               }
               onResetSlot={(slot) => store.run({ type: "reset-slot", id: instance.id, slot })}
+              onRunEnd={(run, keep) =>
+                store.run(
+                  keep ? { type: "end-run", merge: run } : { type: "revert-run", merge: run },
+                )
+              }
+              resetKey={epoch}
               onPoint={(slot) =>
                 store.setHighlight(slot === null ? null : { id: instance.id, slot })
               }

@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { Choice, Setting } from "@/forms/runtime"
 
-import { useDraft, useEditRun } from "./edit-run"
+import { useDraft } from "./edit-run"
+import { usePanelRun } from "./panel-run"
 
 /**
  * One editor per setting kind (spec 3.1). The panel picks the editor by the
@@ -47,6 +48,8 @@ export type SettingEditorProps = {
   readonly commit: (value: unknown, run?: string) => void
   /** The editor's own error: what is typed and cannot be stored. Null clears it. */
   readonly onError: (error: string | null) => void
+  /** Goes up when the document jumps (undo, redo): drop the draft and show the document. */
+  readonly epoch: number
   readonly context: EditorContext
 }
 
@@ -59,23 +62,34 @@ function useTextEditor(
   external: string,
   read: (text: string) => { value: unknown } | { error: string },
 ) {
-  const run = useEditRun()
-  const [draft, setDraft] = useDraft(external)
+  const run = usePanelRun()
+  const [draft, setDraft] = useDraft(external, props.epoch)
+  const report = (error: string | null) => {
+    run.invalid(error !== null)
+    props.onError(error)
+  }
   const change = (text: string) => {
     setDraft(text)
     if (text.trim() === "" && isOptional(props.setting)) {
-      props.onError(null)
+      report(null)
       props.commit(undefined, run.current())
       return
     }
     const result = read(text)
     if ("error" in result) {
-      props.onError(result.error)
+      report(result.error)
       return
     }
     const problem = props.check(result.value)
-    props.onError(problem)
+    report(problem)
     if (problem === null) props.commit(result.value, run.current())
+  }
+  // Left with a value that cannot be stored: the run is taken back, and the
+  // field shows the document's value again.
+  const leave = () => {
+    if (!run.end()) return
+    setDraft(external)
+    props.onError(null)
   }
   return {
     id: props.id,
@@ -84,7 +98,7 @@ function useTextEditor(
     "aria-invalid": props.invalid || undefined,
     value: draft,
     onFocus: run.start,
-    onBlur: run.end,
+    onBlur: leave,
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       change(event.target.value),
   }

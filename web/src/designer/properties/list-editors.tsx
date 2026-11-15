@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Tab } from "@/forms/runtime"
 
-import { useDraft, useEditRun } from "./edit-run"
+import { focusSoon, useDraft } from "./edit-run"
 import type { SettingEditorProps } from "./editors"
+import { usePanelRun } from "./panel-run"
 
 /**
  * Editors for settings that are lists or maps: options, tabs and validation
@@ -106,6 +107,66 @@ function RowActions({
   )
 }
 
+/**
+ * What the list editors share: the rows being edited (kept, even while not
+ * valid, until the list is left), the run of edits of the row field with
+ * focus, and where focus goes when a row moves or goes away.
+ */
+function useListEditor<T>(
+  props: SettingEditorProps,
+  rowsOf: (value: unknown) => T[],
+  problemOf: (rows: readonly T[]) => string | null,
+  prefix: string,
+) {
+  const external = JSON.stringify(rowsOf(props.value))
+  const [draft, setDraft] = useDraft(external, props.epoch)
+  const rows = rowsOf(JSON.parse(draft))
+  const run = usePanelRun()
+  const listRef = React.useRef<HTMLFieldSetElement>(null)
+  const find = (testId: string) => () => listRef.current?.querySelector(`[data-testid="${testId}"]`)
+
+  const apply = (next: T[], merge?: string) => {
+    setDraft(JSON.stringify(next))
+    const problem = problemOf(next) ?? props.check(next)
+    run.invalid(problem !== null)
+    props.onError(problem)
+    if (problem === null) props.commit(next, merge)
+  }
+
+  return {
+    rows,
+    listRef,
+    apply,
+    /** For a row's field: a change, as part of its run. */
+    edit: (next: T[]) => apply(next, run.current()),
+    focus: run.start,
+    /** Left with rows that cannot be stored: the run is taken back, and the rows are the document's again. */
+    leave: () => {
+      if (!run.end()) return
+      setDraft(external)
+      props.onError(null)
+    },
+    /** Removes a row; focus goes to the row that takes its place, the one before, or Add. */
+    remove: (index: number) => {
+      apply(rows.filter((_, at) => at !== index))
+      focusSoon(
+        find(`${prefix}-${index}-label`),
+        find(`${prefix}-${index - 1}-label`),
+        find(`${prefix}-add`),
+      )
+    },
+    /** Moves a row; focus follows it, to the same button if it can still be pressed. */
+    move: (index: number, by: -1 | 1) => {
+      apply(moved(rows, index, by))
+      const target = index + by
+      focusSoon(
+        find(`${prefix}-${target}-${by < 0 ? "up" : "down"}`),
+        find(`${prefix}-${target}-label`),
+      )
+    },
+  }
+}
+
 // --- Options ------------------------------------------------------------------
 
 type Option = { label: string; value: string }
@@ -134,31 +195,20 @@ function optionsProblem(options: readonly Option[]): string | null {
 }
 
 export function OptionsEditor(props: SettingEditorProps) {
-  const external = JSON.stringify(optionsOf(props.value))
-  const [draft, setDraft] = useDraft(external)
-  const options = optionsOf(JSON.parse(draft))
-  const run = useEditRun()
-
-  const apply = (next: Option[], merge?: string) => {
-    setDraft(JSON.stringify(next))
-    const problem = optionsProblem(next) ?? props.check(next)
-    props.onError(problem)
-    if (problem === null) props.commit(next, merge)
-  }
+  const { listRef, ...list } = useListEditor(props, optionsOf, optionsProblem, "props-option")
+  const options = list.rows
   const edit = (index: number, part: keyof Option, text: string) =>
-    apply(
-      options.map((option, at) => (at === index ? { ...option, [part]: text } : option)),
-      run.current(),
-    )
+    list.edit(options.map((option, at) => (at === index ? { ...option, [part]: text } : option)))
   const add = () => {
     const values = new Set(options.map((option) => option.value))
     let number = options.length + 1
     while (values.has(`option${number}`)) number++
-    apply([...options, { label: `Option ${number}`, value: `option${number}` }])
+    list.apply([...options, { label: `Option ${number}`, value: `option${number}` }])
   }
 
   return (
     <fieldset
+      ref={listRef}
       id={props.id}
       aria-labelledby={`${props.id}-label`}
       aria-describedby={props.describedBy}
@@ -179,8 +229,8 @@ export function OptionsEditor(props: SettingEditorProps) {
             aria-label={`Label of option ${index + 1}`}
             data-testid={`props-option-${index}-label`}
             value={option.label}
-            onFocus={run.start}
-            onBlur={run.end}
+            onFocus={list.focus}
+            onBlur={list.leave}
             onChange={(event) => edit(index, "label", event.target.value)}
             className="min-w-0 flex-1"
           />
@@ -189,8 +239,8 @@ export function OptionsEditor(props: SettingEditorProps) {
             data-testid={`props-option-${index}-value`}
             value={option.value}
             spellCheck={false}
-            onFocus={run.start}
-            onBlur={run.end}
+            onFocus={list.focus}
+            onBlur={list.leave}
             onChange={(event) => edit(index, "value", event.target.value)}
             className="min-w-0 flex-1 font-mono"
           />
@@ -199,8 +249,8 @@ export function OptionsEditor(props: SettingEditorProps) {
             index={index}
             count={options.length}
             testId={`props-option-${index}`}
-            onMove={(by) => apply(moved(options, index, by))}
-            onRemove={() => apply(options.filter((_, at) => at !== index))}
+            onMove={(by) => list.move(index, by)}
+            onRemove={() => list.remove(index)}
           />
         </div>
       ))}
@@ -229,31 +279,26 @@ const tabsOf = (value: unknown): Tab[] =>
  * it never inherits the components of a tab that was removed.
  */
 export function TabsEditor(props: SettingEditorProps) {
-  const external = JSON.stringify(tabsOf(props.value))
-  const [draft, setDraft] = useDraft(external)
-  const tabs = tabsOf(JSON.parse(draft))
-  const run = useEditRun()
+  const { listRef, ...list } = useListEditor(
+    props,
+    tabsOf,
+    (rows) => (rows.some((tab) => tab.label.trim() === "") ? "Every tab needs a label." : null),
+    "props-tab",
+  )
+  const tabs = list.rows
   const { showRegion, storedRegions } = props.context
-
-  const apply = (next: Tab[], merge?: string) => {
-    setDraft(JSON.stringify(next))
-    const problem = next.some((tab) => tab.label.trim() === "")
-      ? "Every tab needs a label."
-      : props.check(next)
-    props.onError(problem)
-    if (problem === null) props.commit(next, merge)
-  }
   const add = () => {
     const used = new Set([...tabs.map((tab) => tab.key), ...storedRegions])
     let number = 1
     while (used.has(`tab${number}`)) number++
     const key = `tab${number}`
-    apply([...tabs, { key, label: `Tab ${tabs.length + 1}` }])
+    list.apply([...tabs, { key, label: `Tab ${tabs.length + 1}` }])
     showRegion(key)
   }
 
   return (
     <fieldset
+      ref={listRef}
       id={props.id}
       aria-labelledby={`${props.id}-label`}
       aria-describedby={props.describedBy}
@@ -267,16 +312,15 @@ export function TabsEditor(props: SettingEditorProps) {
             data-testid={`props-tab-${index}-label`}
             value={tab.label}
             onFocus={() => {
-              run.start()
+              list.focus()
               showRegion(tab.key)
             }}
-            onBlur={run.end}
+            onBlur={list.leave}
             onChange={(event) =>
-              apply(
+              list.edit(
                 tabs.map((candidate, at) =>
                   at === index ? { ...candidate, label: event.target.value } : candidate,
                 ),
-                run.current(),
               )
             }
             className="min-w-0 flex-1"
@@ -294,8 +338,8 @@ export function TabsEditor(props: SettingEditorProps) {
             count={tabs.length}
             testId={`props-tab-${index}`}
             canRemove={tabs.length > 1}
-            onMove={(by) => apply(moved(tabs, index, by))}
-            onRemove={() => apply(tabs.filter((_, at) => at !== index))}
+            onMove={(by) => list.move(index, by)}
+            onRemove={() => list.remove(index)}
           />
         </div>
       ))}
@@ -321,7 +365,7 @@ const messagesOf = (value: unknown): Record<string, string> =>
 /** One field per rule the input has: the message shown instead of the rule's own. */
 export function MessagesEditor(props: SettingEditorProps) {
   const messages = messagesOf(props.value)
-  const run = useEditRun()
+  const run = usePanelRun()
   const { rules } = props.context
   if (rules.length === 0) return null
 
@@ -344,6 +388,7 @@ export function MessagesEditor(props: SettingEditorProps) {
           key={rule.id}
           rule={rule}
           value={messages[rule.id] ?? ""}
+          epoch={props.epoch}
           onFocus={run.start}
           onBlur={run.end}
           onChange={(text) => change(rule.id, text)}
@@ -356,17 +401,19 @@ export function MessagesEditor(props: SettingEditorProps) {
 function MessageField({
   rule,
   value,
+  epoch,
   onFocus,
   onBlur,
   onChange,
 }: {
   rule: { id: string; label: string }
   value: string
+  epoch: number
   onFocus: () => void
   onBlur: () => void
   onChange: (text: string) => void
 }) {
-  const [draft, setDraft] = useDraft(value)
+  const [draft, setDraft] = useDraft(value, epoch)
   const id = React.useId()
   return (
     <div className="flex flex-col gap-1">

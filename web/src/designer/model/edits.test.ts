@@ -258,7 +258,7 @@ describe("a run of edits is one undo step", () => {
     const { state, message } = run(start, ...typed)
     expect(instanceOf(state, "c_a")?.settings).toEqual({ label: "First" })
     expect(state.past).toHaveLength(1)
-    // Only the first change of a run is said aloud.
+    // Nothing is said while the run goes on.
     expect(message).toBeNull()
 
     const undone = run(state, { type: "undo" })
@@ -350,5 +350,78 @@ describe("problems", () => {
 
   it("has nothing to say about an instance that is fine", () => {
     expect(problemsOf(outlineOf(form([field("a")])).byId.get("c_a")!)).toEqual([])
+  })
+})
+
+describe("a run of edits ends", () => {
+  const typed = (value: string, merge = "r1"): Command => ({
+    type: "set-setting",
+    id: "c_a",
+    key: "label",
+    value,
+    merge,
+  })
+
+  it("kept: says once what the run did, with the final value", () => {
+    const { state } = run(form([field("a")]), typed("P"), typed("Pe"), typed("Phone"))
+    const ended = run(state, { type: "end-run", merge: "r1" })
+    expect(ended.changed).toBe(false)
+    expect(ended.state).toBe(state)
+    expect(ended.message).toBe("Label of a: “Phone”.")
+    // Another run, or a run that left no step, says nothing.
+    expect(run(state, { type: "end-run", merge: "r2" }).message).toBeNull()
+  })
+
+  it("says what a run of columns did as a whole", () => {
+    const start = form([columns("row", { col3: [field("c")] }, 3)])
+    const { state } = run(start, {
+      type: "set-setting",
+      id: "c_row",
+      key: "columns",
+      value: 2,
+      merge: "r1",
+    })
+    expect(run(state, { type: "end-run", merge: "r1" }).message).toBe(
+      "Columns of row: 2. 1 component now hidden; it comes back when the region is shown again.",
+    )
+  })
+
+  it("taken back: the document is what it was before the run, with no undo step left", () => {
+    const start = form([withSettings(field("a"), { maxLength: 5 })])
+    const { state } = run(start, {
+      type: "reset-setting",
+      id: "c_a",
+      key: "maxLength",
+      merge: "r1",
+    })
+    expect(instanceOf(state, "c_a")).not.toHaveProperty("settings")
+
+    const back = run(state, { type: "revert-run", merge: "r1" })
+    expect(back.changed).toBe(true)
+    expect(back.state.document).toBe(start)
+    expect(back.state.past).toEqual([])
+    expect(back.message).toBe("Taken back: Reset maximum length of a. What was typed is not valid.")
+  })
+
+  it("taken back keeps the selection, and a renamed instance gets its name back", () => {
+    const start = form([field("textField1"), field("other")])
+    let state = createEditorState(start)
+    state = runCommand(state, { type: "select", id: "c_textField1" }, environment).state
+    state = run(
+      state,
+      { type: "rename", id: "c_textField1", name: "t", merge: "r1" },
+      { type: "rename", id: "c_textField1", name: "textField", merge: "r1" },
+      { type: "select", id: "c_other" },
+    ).state
+    const back = run(state, { type: "revert-run", merge: "r1" })
+    expect(instanceOf(back.state, "c_textField1")?.name).toBe("textField1")
+    expect(back.state.selection).toBe("c_other")
+  })
+
+  it("does nothing for a run with no step, or after an undo", () => {
+    const start = form([field("a")])
+    expect(run(start, { type: "revert-run", merge: "r1" }).changed).toBe(false)
+    const { state } = run(start, typed("A"), { type: "undo" })
+    expect(run(state, { type: "revert-run", merge: "r1" }).changed).toBe(false)
   })
 })

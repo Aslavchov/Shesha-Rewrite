@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { TypeIcon } from "lucide-react"
 import { createMemoryRouter } from "react-router"
@@ -347,5 +347,133 @@ describe("the toolbox is one Tab stop (spec 5)", () => {
   it("has a live region with the status role", () => {
     renderDesigner()
     expect(screen.getByTestId("designer-live")).toHaveAttribute("role", "status")
+  })
+})
+
+describe("a field left with an invalid value (Phase 3 fixes)", () => {
+  it("puts back the name it had when it took focus, not a half-typed one", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { user, save } = renderDesigner([field("textField1"), field("textField2")])
+    await user.click(row("textField1"))
+    const name = screen.getByTestId("props-name")
+    await user.clear(name)
+    await user.type(name, "textField2")
+    expect(within(panel()).getByRole("alert")).toHaveTextContent("already the name")
+    // On the way, "textField" was a valid name and applied.
+    expect(row("textField")).toBeInTheDocument()
+
+    await user.tab()
+    expect(name).toHaveValue("textField1")
+    expect(row("textField1")).toBeInTheDocument()
+    expect(within(panel()).queryByRole("alert")).not.toBeInTheDocument()
+    expect(live()).toBe("Taken back: Rename textField1. What was typed is not valid.")
+    // Nothing is left to undo, and what is saved is the form as it was.
+    expect(screen.getByTestId("designer-undo")).toHaveAttribute("aria-disabled", "true")
+    await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS))
+    const saved = save.mock.lastCall?.[1].components.map((instance) => instance.name)
+    expect(saved ?? ["textField1", "textField2"]).toEqual(["textField1", "textField2"])
+  })
+
+  it("puts back a maximum length that was cleared on the way to an invalid one", async () => {
+    const { user } = renderDesigner([{ ...field("a"), settings: { maxLength: 5 } }])
+    await user.click(row("a"))
+    const max = setting("maxLength")
+    await user.clear(max)
+    await user.type(max, "-3")
+    expect(sourceOf("maxLength")).toBe("default")
+    await user.tab()
+    expect(max).toHaveValue(5)
+    expect(sourceOf("maxLength")).toBe("set")
+  })
+
+  it("keeps a valid value when the field is left, and says so once, with the final value", async () => {
+    const { user } = renderDesigner([field("a")])
+    await user.click(row("a"))
+    const label = setting("label")
+    await user.clear(label)
+    await user.type(label, "Phone")
+    expect(live()).not.toContain("“P”")
+    await user.tab()
+    expect(live()).toBe("Label of a: “Phone”.")
+    expect(canvasField("a")).toHaveTextContent("Phone")
+  })
+})
+
+describe("errors after undo and redo (Phase 3 fixes)", () => {
+  it("drops a field's error when undo puts a valid value back", async () => {
+    const { user } = renderDesigner([field("a")])
+    await user.click(row("a"))
+    const name = screen.getByTestId("props-name")
+    await user.clear(name)
+    await user.type(name, "first")
+    await user.tab()
+    await user.click(name)
+    await user.type(name, " name")
+    expect(within(panel()).getByRole("alert")).toBeInTheDocument()
+
+    await user.keyboard("{Control>}z{/Control}")
+    expect(name).toHaveValue("a")
+    expect(name).not.toHaveAttribute("aria-invalid")
+    expect(within(panel()).queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("drops a setting's error on redo too", async () => {
+    const { user } = renderDesigner([field("a")])
+    await user.click(row("a"))
+    await user.type(setting("maxLength"), "5")
+    await user.tab()
+    await user.click(screen.getByTestId("designer-undo"))
+    fireEvent.change(setting("maxLength"), { target: { value: "-1" } })
+    expect(within(panel()).getByRole("alert")).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId("designer-redo"))
+    expect(setting("maxLength")).toHaveValue(5)
+    expect(within(panel()).queryByRole("alert")).not.toBeInTheDocument()
+  })
+})
+
+describe("focus never drops to the page (Phase 3 fixes)", () => {
+  it("moves from a reset button to the setting's editor", async () => {
+    const { user } = renderDesigner([{ ...field("a"), settings: { placeholder: "x" } }])
+    await user.click(row("a"))
+    await user.click(screen.getByTestId("props-reset-placeholder"))
+    await waitFor(() => expect(setting("placeholder")).toHaveFocus())
+  })
+
+  it("moves from a removed option to the one that takes its place, then to Add", async () => {
+    const options = [
+      { label: "One", value: "1" },
+      { label: "Two", value: "2" },
+    ]
+    const { user } = renderDesigner([{ ...field("pick", "radio-group"), settings: { options } }])
+    await user.click(row("pick"))
+    await user.click(screen.getByTestId("props-option-0-remove"))
+    await waitFor(() => expect(screen.getByTestId("props-option-0-label")).toHaveFocus())
+    expect(screen.getByTestId("props-option-0-label")).toHaveValue("Two")
+    await user.click(screen.getByTestId("props-option-0-remove"))
+    await waitFor(() => expect(screen.getByTestId("props-option-add")).toHaveFocus())
+  })
+
+  it("moves from a removed tab to the tab before it when it was the last", async () => {
+    const { user } = renderDesigner([{ id: "c_t", type: "tabs", name: "t" }])
+    await user.click(row("t"))
+    await user.click(screen.getByTestId("props-tab-1-remove"))
+    await waitFor(() => expect(screen.getByTestId("props-tab-0-label")).toHaveFocus())
+  })
+
+  it("moves from a fixed problem to the next fix, then to what was fixed", async () => {
+    const { user } = renderDesigner([{ ...field("a"), settings: { maxLength: -3, colour: 1 } }])
+    await user.click(row("a"))
+    await user.click(screen.getByTestId("props-problem-fix-0"))
+    await waitFor(() => expect(screen.getByTestId("props-problem-fix-0")).toHaveFocus())
+    await user.click(screen.getByTestId("props-problem-fix-0"))
+    // Removing "colour" has no editor to go to: the name takes focus.
+    await waitFor(() => expect(screen.getByTestId("props-name")).toHaveFocus())
+  })
+
+  it("moves from a reset problem to the setting it reset", async () => {
+    const { user } = renderDesigner([{ ...field("a"), settings: { maxLength: -3 } }])
+    await user.click(row("a"))
+    await user.click(screen.getByTestId("props-problem-fix-0"))
+    await waitFor(() => expect(setting("maxLength")).toHaveFocus())
   })
 })

@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { ColorValue } from "@/generated"
 
 import { PANEL_POPUP_ATTRIBUTE } from "../properties/described-by"
-import { useDraft, useEditRun } from "../properties/edit-run"
+import { type RunEnd, useDraft, useEditRun, useResetOn } from "../properties/edit-run"
 import { colourName, HEX_COLOUR, swatchColour, THEME_COLOURS } from "./colours"
 
 /** A swatch's colour as a CSS custom property: data for display, like a box's place. */
@@ -45,6 +45,8 @@ export function ColourPicker({
   inherited,
   describedBy,
   onChange,
+  onRunEnd,
+  resetKey,
 }: {
   id: string
   testId: string
@@ -56,24 +58,35 @@ export function ColourPicker({
   describedBy?: string
   /** A new colour, as part of a run of edits when it is typed. */
   onChange: (value: ColorValue, run?: string) => void
+  /** The typed colour's run is over: kept, or taken back when it was left not valid. */
+  onRunEnd: RunEnd
+  /** Changes when the values jump (undo, redo): the typed colour is dropped. */
+  resetKey: number
 }) {
   const [open, setOpen] = React.useState(false)
   const hexId = React.useId()
-  const run = useEditRun()
+  const run = useEditRun(onRunEnd)
   const external = typeof value === "string" ? value : ""
-  const [hex, setHex] = useDraft(external)
-  const [error, setError] = React.useState<string | null>(null)
+  const [hex, setHex] = useDraft(external, resetKey)
+  const [error, setError] = useResetOn<string | null>(null, resetKey)
   const name = colourName(value)
 
   const typeHex = (text: string) => {
     setHex(text)
     const candidate = text.startsWith("#") ? text : `#${text}`
-    if (HEX_COLOUR.test(candidate)) {
+    const isValid = HEX_COLOUR.test(candidate)
+    run.invalid(!isValid)
+    if (isValid) {
       setError(null)
       onChange(candidate, run.current())
     } else {
       setError("Enter six or eight hex digits, such as #003BB2.")
     }
+  }
+  const leaveHex = () => {
+    if (!run.end()) return
+    setHex(external)
+    setError(null)
   }
 
   return (
@@ -141,7 +154,7 @@ export function ColourPicker({
               aria-invalid={error !== null || undefined}
               aria-describedby={error ? `${hexId}-error` : undefined}
               onFocus={run.start}
-              onBlur={run.end}
+              onBlur={leaveHex}
               onChange={(event) => typeHex(event.target.value.trim())}
               className="font-mono"
             />

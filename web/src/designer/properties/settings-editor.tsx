@@ -18,7 +18,9 @@ import {
   TextEditor,
 } from "./editors"
 import { MessagesEditor, OptionsEditor, TabsEditor } from "./list-editors"
+import { useEpoch } from "./panel-run"
 import { describedBy } from "./described-by"
+import { focusSoon, useResetOn } from "./edit-run"
 import { PanelSection, PropertyRow } from "./property-row"
 
 /**
@@ -101,7 +103,9 @@ function SettingField({
   setting: Setting<unknown>
 }) {
   const run = useRun()
-  const [error, setError] = React.useState<string | null>(null)
+  const epoch = useEpoch()
+  // An error is about what is typed; when the document jumps, it goes.
+  const [error, setError] = useResetOn<string | null>(null, epoch)
   /** Said under the row after a change of this setting hid components. */
   const [warning, setWarning] = React.useState<{ before: number } | null>(null)
   const id = `props-${target ?? "form"}-${key}`
@@ -124,6 +128,8 @@ function SettingField({
   const reset = () => {
     setError(null)
     commit(undefined)
+    // The reset button goes with what it reset: focus moves to the editor.
+    focusSoon(() => document.getElementById(id))
   }
 
   return (
@@ -147,6 +153,7 @@ function SettingField({
         check={(candidate) => settingProblem(owner, stored, key, candidate)}
         commit={commit}
         onError={setError}
+        epoch={epoch}
         context={context}
       />
       {newlyHidden > 0 ? (

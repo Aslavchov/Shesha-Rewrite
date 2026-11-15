@@ -197,6 +197,144 @@ test.describe("C3-5 Invalid setting", () => {
   })
 })
 
+test.describe("C3-4 and C3-5 A field left with an invalid value", () => {
+  test("a taken name, typed key by key, leaves the name it had, not a half-typed one", async ({
+    page,
+    request,
+  }) => {
+    const id = await createForm(request, "Taken name", [field("textField1"), field("textField2")])
+    await openDesigner(page, id)
+    await canvas(page, "textField1").click()
+    const name = page.getByTestId("props-name")
+    await name.fill("")
+    await name.pressSequentially("textField2")
+    await expect(page.getByTestId("designer-properties").getByRole("alert")).toHaveText(
+      "“textField2” is already the name of another component.",
+    )
+    await name.blur()
+    await expect(name).toHaveValue("textField1")
+    await expect(outline(page, "textField1")).toBeVisible()
+    await expect(page.getByTestId("designer-properties").getByRole("alert")).toHaveCount(0)
+    await expect(liveRegion(page)).toHaveText(
+      "Taken back: Rename textField1. What was typed is not valid.",
+    )
+    const form = await stored(page, request, id)
+    expect(form.document.components.map((instance) => instance.name)).toEqual([
+      "textField1",
+      "textField2",
+    ])
+  })
+
+  test("a data path that clashes, typed key by key, leaves the path it had", async ({
+    page,
+    request,
+  }) => {
+    const id = await createForm(request, "Clashing path", [
+      { ...field("first"), bind: "person.first" },
+      { ...field("taken"), bind: "person.firstName" },
+    ])
+    await openDesigner(page, id)
+    await canvas(page, "first").click()
+    const path = page.getByTestId("props-bind")
+    await path.fill("")
+    await path.pressSequentially("person.firstName")
+    await expect(page.getByTestId("designer-properties").getByRole("alert")).toHaveText(
+      "taken already stores its value under person.firstName.",
+    )
+    await path.blur()
+    await expect(path).toHaveValue("person.first")
+    const form = await stored(page, request, id)
+    expect(find(form.document.components, "first")?.bind).toBe("person.first")
+  })
+
+  test("a maximum length typed as -3 leaves the maximum it had", async ({ page, request }) => {
+    const start: Instance = { ...field("first"), settings: { label: "First", maxLength: 5 } }
+    const id = await createForm(request, "Negative maximum", [start])
+    await openDesigner(page, id)
+    await canvas(page, "first").click()
+    const max = setting(page, "maxLength")
+    await max.fill("")
+    await max.pressSequentially("-3")
+    await expect(errorOf(page, "maxLength")).toHaveText("Enter a whole number, 0 or more.")
+    await max.blur()
+    await expect(max).toHaveValue("5")
+    await expect(errorOf(page, "maxLength")).toHaveCount(0)
+    const form = await stored(page, request, id)
+    expect(find(form.document.components, "first")?.settings).toEqual(start.settings)
+  })
+
+  test("a minimum length of 10 under a maximum of 5 leaves no minimum, not 1", async ({
+    page,
+    request,
+  }) => {
+    const start: Instance = { ...field("first"), settings: { label: "First", maxLength: 5 } }
+    const id = await createForm(request, "Minimum above maximum", [start])
+    await openDesigner(page, id)
+    await canvas(page, "first").click()
+    const min = setting(page, "minLength")
+    await min.pressSequentially("10")
+    await expect(errorOf(page, "minLength")).toHaveText(
+      "The minimum length is more than the maximum length.",
+    )
+    await min.blur()
+    await expect(min).toHaveValue("")
+    await expect(sourceOf(page, "minLength")).toHaveAttribute("data-value-source", "default")
+    const form = await stored(page, request, id)
+    expect(find(form.document.components, "first")?.settings).toEqual(start.settings)
+  })
+
+  test("after undo, a field shows the restored value without its old error", async ({
+    page,
+    request,
+  }) => {
+    const id = await createForm(request, "Stale errors", [field("first")])
+    await openDesigner(page, id)
+    await canvas(page, "first").click()
+    await setting(page, "maxLength").fill("5")
+    await setting(page, "maxLength").blur()
+    await setting(page, "minLength").fill("9")
+    await expect(errorOf(page, "minLength")).toBeVisible()
+    await page.keyboard.press("Control+z")
+    await expect(setting(page, "maxLength")).toHaveValue("")
+    await expect(setting(page, "minLength")).toHaveValue("")
+    await expect(errorOf(page, "minLength")).toHaveCount(0)
+    await page.keyboard.press("Control+y")
+    await expect(setting(page, "maxLength")).toHaveValue("5")
+    await expect(errorOf(page, "minLength")).toHaveCount(0)
+  })
+
+  test("focus moves on from a reset, a removed option and a fixed problem", async ({
+    page,
+    request,
+  }) => {
+    const id = await createForm(request, "Focus", [
+      {
+        ...field("pick", "radio-group"),
+        settings: {
+          placeholder: 1,
+          options: [
+            { label: "One", value: "1" },
+            { label: "Two", value: "2" },
+          ],
+        },
+      },
+    ])
+    await openDesigner(page, id)
+    await canvas(page, "pick").click()
+
+    await page.getByTestId("props-problem-fix-0").click()
+    await expect(page.getByTestId("props-name")).toBeFocused()
+
+    await setting(page, "helpText").fill("Pick one")
+    await page.getByTestId("props-reset-helpText").click()
+    await expect(setting(page, "helpText")).toBeFocused()
+
+    await page.getByTestId("props-option-0-remove").click()
+    await expect(page.getByTestId("props-option-0-label")).toBeFocused()
+    await expect(page.getByTestId("props-option-0-label")).toHaveValue("Two")
+  })
+})
+
 test.describe("C3-6 Form settings", () => {
   test("renaming the form and changing its gap update the title, the list and the canvas", async ({
     page,
@@ -591,7 +729,10 @@ test.describe("C3-14 Keyboard", () => {
     await page.keyboard.press("Control+a")
     await page.keyboard.type("Comments")
     await expect(drawn(page, "textArea1")).toContainText("Comments")
-    await expect(liveRegion(page)).toHaveText("Label of textArea1: “C”.")
+
+    // Leaving the field ends the run: it is said once, with the final value.
+    await page.keyboard.press("Tab")
+    await expect(liveRegion(page)).toHaveText("Label of textArea1: “Comments”.")
 
     // On to the Appearance editor: open the root slot, and give it a background.
     await tabTo(page, "props-slot-root")

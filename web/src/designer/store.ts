@@ -35,6 +35,12 @@ export type DesignerSnapshot = {
    * that tab.
    */
   readonly shownRegions: ReadonlyMap<string, string>
+  /**
+   * Goes up whenever the document jumps to another state that no field was
+   * typing towards: undo, redo, a run taken back, a reload. Fields then drop
+   * what they were typing, and their errors, and show the document again.
+   */
+  readonly epoch: number
   /** The part of an instance the properties panel points at, to outline it on the canvas. */
   readonly highlight: { readonly id: string; readonly slot: string } | null
 }
@@ -54,6 +60,7 @@ export class DesignerStore {
       announcement: { text: "", count: 0 },
       focus: { surface: "canvas", count: 0 },
       shownRegions: new Map(),
+      epoch: 0,
       highlight: null,
     }
   }
@@ -70,8 +77,12 @@ export class DesignerStore {
   /** Runs a command, and announces what it did or why it did nothing. */
   run(command: Command): CommandResult {
     const result = runCommand(this.#snapshot.editor, command, { schema: this.schema })
+    const jumps =
+      result.changed &&
+      (command.type === "undo" || command.type === "redo" || command.type === "revert-run")
     this.#set({
       editor: result.state,
+      ...(jumps ? { epoch: this.#snapshot.epoch + 1 } : {}),
       shownRegions: this.#revealing(result.state.document, result.state.selection),
       ...(result.message === null ? {} : { announcement: this.#next(result.message) }),
     })
@@ -139,7 +150,7 @@ export class DesignerStore {
 
   /** Starts again from another document: nothing selected, no history. */
   reset(document: FormDocument): void {
-    this.#set({ editor: createEditorState(document) })
+    this.#set({ editor: createEditorState(document), epoch: this.#snapshot.epoch + 1 })
   }
 
   #next(text: string) {

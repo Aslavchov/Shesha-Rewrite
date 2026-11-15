@@ -184,6 +184,8 @@ const step = fc.record({
     "resetSlot",
     "formName",
     "formDescription",
+    "endRun",
+    "revertRun",
   ),
   a: fc.nat(10_000),
   b: fc.nat(10_000),
@@ -321,6 +323,9 @@ function toCommand(state: EditorState, { kind, a, b, c }: Step): Command {
         name: ["Contact", "", "   ", "x".repeat(201), "Ünïcödé"][b % 5],
         merge: "formName",
       }
+    case "endRun":
+    case "revertRun":
+      return { type: kind === "endRun" ? "end-run" : "revert-run", merge: `run${a % 2}` }
     case "formDescription":
       return {
         type: "describe-form",
@@ -380,6 +385,11 @@ describe("C2-15 the designer never creates a document the server would reject", 
               // A refused command changes nothing at all.
               expect(state.document, context).toBe(before.document)
               expect(state.past, context).toBe(before.past)
+              continue
+            }
+            // A run taken back gives back the very document from before the run.
+            if (command.type === "revert-run") {
+              expect(state.document, context).toBe(before.past.at(-1)?.document)
               continue
             }
             if (command.type === "undo" || command.type === "redo") continue
