@@ -92,8 +92,9 @@ export function ThemePreview() {
         sample.getAttribute(SLOT_ATTRIBUTE) === slot
           ? [sample]
           : [...sample.querySelectorAll(`[${SLOT_ATTRIBUTE}="${slot}"]`)].filter(
-              // Not the parts of a component held inside this one.
-              (part) => part.closest('[data-testid^="field-"]') === sample,
+              // Not the parts of a component held inside this one: the
+              // nearest component root around a part is this sample's.
+              (part) => part.parentElement?.closest(`[${SLOT_ATTRIBUTE}="root"]`) === sample,
             )
       for (const part of parts) {
         const box = part.getBoundingClientRect()

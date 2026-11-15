@@ -324,6 +324,13 @@ test.describe("C4-10 Dark tokens", () => {
   test("a theme colour follows the mode; a custom hex stays the same", async ({ page }) => {
     await openThemes(page)
     await page.getByTestId("theme-component-text-field").click()
+    // Pointing at a part outlines it in the preview, as in the designer.
+    await page.getByTestId("theme-slot-control").hover()
+    const outlined = preview(page).getByTestId("theme-slot-highlight")
+    await expect(outlined).toHaveCount(1)
+    const control = await preview(page).getByTestId("field-textField1-control").boundingBox()
+    const outline = await outlined.boundingBox()
+    expect(outline && control && Math.abs(outline.y - control.y) < 1).toBe(true)
     await page.getByTestId("theme-slot-label").click()
     await page.getByTestId("theme-style-label-color").click()
     await page.getByTestId("theme-token-primary").click()

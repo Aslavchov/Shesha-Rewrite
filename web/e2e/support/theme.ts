@@ -68,6 +68,9 @@ export async function waitUntilDraftSaved(page: Page) {
 
 /** Types a colour into a role's picker and closes it. */
 export async function setColour(page: Page, testId: string, hex: string) {
+  // A tab in the background gets no animation frames, so a popup there never
+  // finishes closing: act in the tab a person would be looking at.
+  await page.bringToFront()
   await page.getByTestId(testId).click()
   const field = page.getByTestId(`${testId}-hex`)
   await field.fill(hex)
