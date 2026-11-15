@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import type { FormDocument } from "@/generated"
@@ -7,7 +5,7 @@ import type { FormDocument } from "@/generated"
 import { useDesignerContext } from "../context"
 import { formDescriptionProblem, formNameProblem } from "../model/rules"
 import { FORM_OWNER } from "../model/settings"
-import { useDraft, useEditRun } from "./edit-run"
+import { useCheckedText } from "./panel-run"
 import { describedBy } from "./described-by"
 import { PanelSection, PropertyRow } from "./property-row"
 import { SettingsEditor } from "./settings-editor"
@@ -40,27 +38,21 @@ export function FormProperties({ document }: { document: FormDocument }) {
 
 function FormNameField({ name }: { name: string }) {
   const { store } = useDesignerContext()
-  const run = useEditRun()
-  const [draft, setDraft] = useDraft(name)
-  const [error, setError] = React.useState<string | null>(null)
+  const field = useCheckedText(name, formNameProblem, (text, run) =>
+    store.run({ type: "rename-form", name: text, merge: run }),
+  )
   const id = "props-form-name-input"
   return (
-    <PropertyRow id={id} label="Name" error={error}>
+    <PropertyRow id={id} label="Name" error={field.error}>
       <Input
         id={id}
         data-testid="props-form-name"
-        value={draft}
-        aria-invalid={error !== null || undefined}
-        aria-describedby={describedBy(id, error, undefined)}
-        onFocus={run.start}
-        onBlur={run.end}
-        onChange={(event) => {
-          const text = event.target.value
-          setDraft(text)
-          const problem = formNameProblem(text)
-          setError(problem)
-          if (problem === null) store.run({ type: "rename-form", name: text, merge: run.current() })
-        }}
+        value={field.draft}
+        aria-invalid={field.error !== null || undefined}
+        aria-describedby={describedBy(id, field.error, undefined)}
+        onFocus={field.onFocus}
+        onBlur={field.onBlur}
+        onChange={(event) => field.onChange(event.target.value)}
       />
     </PropertyRow>
   )
@@ -68,31 +60,23 @@ function FormNameField({ name }: { name: string }) {
 
 function FormDescriptionField({ description }: { description: string }) {
   const { store } = useDesignerContext()
-  const run = useEditRun()
-  const [draft, setDraft] = useDraft(description)
-  const [error, setError] = React.useState<string | null>(null)
+  const field = useCheckedText(description, formDescriptionProblem, (text, run) =>
+    store.run({ type: "describe-form", description: text, merge: run }),
+  )
   const id = "props-form-description-input"
   const help = "Shown with the form in the Forms list."
   return (
-    <PropertyRow id={id} label="Description" help={help} error={error}>
+    <PropertyRow id={id} label="Description" help={help} error={field.error}>
       <Textarea
         id={id}
         data-testid="props-form-description"
-        value={draft}
+        value={field.draft}
         rows={3}
-        aria-invalid={error !== null || undefined}
-        aria-describedby={describedBy(id, error, help)}
-        onFocus={run.start}
-        onBlur={run.end}
-        onChange={(event) => {
-          const text = event.target.value
-          setDraft(text)
-          const problem = formDescriptionProblem(text)
-          setError(problem)
-          if (problem === null) {
-            store.run({ type: "describe-form", description: text, merge: run.current() })
-          }
-        }}
+        aria-invalid={field.error !== null || undefined}
+        aria-describedby={describedBy(id, field.error, help)}
+        onFocus={field.onFocus}
+        onBlur={field.onBlur}
+        onChange={(event) => field.onChange(event.target.value)}
         className="min-h-16"
       />
     </PropertyRow>

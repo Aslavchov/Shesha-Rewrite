@@ -39,6 +39,11 @@ export type HistoryEntry = {
    * instead of adding a step, so a run of keystrokes is undone at once.
    */
   readonly merge?: string
+  /**
+   * What the run's latest change would say aloud. A run is announced once,
+   * with its final value, when it ends (`end-run`), not keystroke by keystroke.
+   */
+  readonly said?: string
 }
 
 /** The style properties of a slot (ADR 0006). */
@@ -88,6 +93,18 @@ export type Command =
   | { readonly type: "reset-slot"; readonly id: string; readonly slot: string }
   | Merged<{ readonly type: "rename-form"; readonly name: string }>
   | Merged<{ readonly type: "describe-form"; readonly description: string }>
+
+  /**
+   * The run of edits `merge` is over and its result is kept: says once what
+   * it did, with the final value. Nothing changes.
+   */
+  | { readonly type: "end-run"; readonly merge: string }
+  /**
+   * The run of edits `merge` is over and its result is not kept, because the
+   * field was left with a value that cannot be stored: the document goes
+   * back to what it was before the run, and the run leaves no undo step.
+   */
+  | { readonly type: "revert-run"; readonly merge: string }
 
 type Merged<T> = T & { readonly merge?: string }
 
@@ -162,10 +179,17 @@ export function runCommand(
   const outline = schema.outline(state.document)
   const nothing = (message: string | null): CommandResult => ({ state, changed: false, message })
 
+  /** The history entry of the run `merge`, if the last change belongs to it and nothing was undone since. */
+  function runEntry(merge: string | undefined): HistoryEntry | null {
+    const last = state.past.at(-1)
+    return merge !== undefined && last?.merge === merge && state.future.length === 0 ? last : null
+  }
+
   /**
    * Applies one operation and records it in the history. With `merge`, a
    * change that continues the run of the last entry replaces that entry's
-   * "after" instead of adding a step, and says nothing more aloud.
+   * "after" instead of adding a step. A change in a run says nothing aloud
+   * yet: what it would say is kept for when the run ends.
    */
   function change(
     operation: Operation,
@@ -176,10 +200,16 @@ export function runCommand(
   ): CommandResult {
     const applied = applyOperation(state.document, operation, schema)
     if (!applied.ok) return nothing(REFUSALS[applied.refusal])
-    const last = state.past.at(-1)
-    if (merge !== undefined && last?.merge === merge && state.future.length === 0) {
+    const said = describe(schema.outline(applied.document))
+    const running = runEntry(merge)
+    if (running) {
       return {
-        state: { ...state, document: applied.document, selection },
+        state: {
+          ...state,
+          document: applied.document,
+          selection,
+          past: [...state.past.slice(0, -1), { ...running, said }],
+        },
         changed: true,
         message: null,
       }
@@ -188,7 +218,7 @@ export function runCommand(
       label,
       document: state.document,
       selection: state.selection,
-      ...(merge === undefined ? {} : { merge }),
+      ...(merge === undefined ? {} : { merge, said }),
     }
     return {
       state: {
@@ -198,7 +228,7 @@ export function runCommand(
         future: [],
       },
       changed: true,
-      message: describe(schema.outline(applied.document)),
+      message: merge === undefined ? said : null,
     }
   }
 
@@ -218,7 +248,9 @@ export function runCommand(
     said: string,
     merge?: string,
   ): CommandResult {
-    const hiddenBefore = hiddenCount(outline)
+    // Measured from the start of the run, so the run says what it did as a whole.
+    const before = runEntry(merge)?.document
+    const hiddenBefore = hiddenCount(before ? schema.outline(before) : outline)
     return change(
       operation,
       label,
@@ -444,6 +476,27 @@ export function runCommand(
             : "Changed the form's description.",
         command.merge,
       )
+
+    case "end-run":
+      return nothing(runEntry(command.merge)?.said ?? null)
+
+    case "revert-run": {
+      const entry = runEntry(command.merge)
+      if (!entry) return nothing(null)
+      // The selection is not part of the run: it stays, if it still can.
+      const keeps =
+        state.selection !== null && schema.outline(entry.document).byId.has(state.selection)
+      return {
+        state: {
+          document: entry.document,
+          selection: keeps ? state.selection : entry.selection,
+          past: state.past.slice(0, -1),
+          future: state.future,
+        },
+        changed: true,
+        message: `Taken back: ${entry.label}. What was typed is not valid.`,
+      }
+    }
 
     case "undo": {
       const entry = state.past.at(-1)

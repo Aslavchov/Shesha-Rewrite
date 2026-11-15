@@ -38,7 +38,16 @@ Any of the new commands may carry `merge`, a key that names a run of edits. A hi
 
 The properties panel gives every field a new key each time the field takes focus (`edit-run.ts`). Everything typed into it until it loses focus is one run: typing a label, holding an arrow key on a number, typing a hex colour. A click on a switch, a choice from a list, a reset, adding or removing a row are each a step of their own. Undo and redo are never merged, so a run interrupted by an undo starts afresh.
 
-Only the first change of a run is announced; announcing every keystroke would drown out the typing itself.
+**How a run ends.** A valid value is applied as it is typed, so the canvas follows the typing. That means a run passes through values that were valid on the way to one that is not ("textField" on the way to the taken "textField2"; no maximum on the way from 5 to -3). So a run ends explicitly, when its field loses focus or goes away (another selection), with one of two commands:
+
+| Command | When | Does |
+| --- | --- | --- |
+| `end-run { merge }` | The field is left with a valid value | Says once what the run did, with its final value ("Label of firstName: “Phone”."). Nothing changes |
+| `revert-run { merge }` | The field is left with a value that cannot be stored | Puts back the document from before the run (the run's history entry holds it), removes that entry, and keeps the selection. The field shows the document's value again, without its error |
+
+Both act only when the run's entry is the last one and nothing was undone since; otherwise there is nothing of the run left to end. While a run goes on, nothing is said; each change records what it would say, measured from the start of the run, and `end-run` says the last one. Announcing every keystroke would drown out the typing itself.
+
+**Drafts follow jumps.** The designer's store has an `epoch` that goes up on undo, redo, a run taken back and a reload. Every field drops what it was typing, and its error, when the epoch changes, so a field never shows a restored valid value beside an error about something else.
 
 In the panel, Ctrl+Z and Ctrl+Y (and ⌘ on a Mac) are the designer's undo and redo, not the field's own. A field's draft follows the document, so undo shows the restored value at once. The same holds in popups the panel opens: otherwise the browser's own undo would act on whichever field it last saw typed into.
 
@@ -78,6 +87,8 @@ type AppearanceEditorProps = {
   defaults: { label: string; styles?: Readonly<Record<string, SlotStyle>> }
   onChange(slot, property, value | undefined, run?): void // undefined removes the override
   onResetSlot(slot): void
+  onRunEnd(run, keep): void                              // a typed run is over: keep it, or take it back
+  resetKey: number                                       // changes on undo and redo: drop typed values
   onPoint?(slot | null): void                            // the slot hovered or focused
   testIdPrefix?: string                                  // "props" in the designer
 }
@@ -87,6 +98,7 @@ type AppearanceEditorProps = {
 - **Colours are a theme colour first.** The colour picker opens on the theme colours, named in words (Text, Muted, Primary, Success…), each a system token that follows light and dark mode. A custom hex value is below them, marked as staying the same in dark mode.
 - **Set or default, and reset,** per property and per slot.
 - **Pointing.** `onPoint` reports the slot under the pointer or focus. The designer draws that slot's elements on the canvas with a dashed outline and the slot's name. It finds them by a `data-form-slot` attribute that `resolveSlots` now puts in every slot's props, next to the style it already carried (ADR 0006 is extended: the attribute names the part; it styles nothing).
+- **Focus stays put.** A reset button goes away with what it reset; focus moves to the property's editor, or to the slot when the whole slot was reset. The same holds across the panel: after a reset, focus goes to the setting's editor; after removing a row, to the row that takes its place, the one before, or Add; after a problem's fix, to the next fix, then to what was fixed, then to the name.
 - Hover overrides and per-side padding stay out, as the spec says.
 
 ### 5. Tabs regions are keyed by stable keys
@@ -108,6 +120,7 @@ Alert needs success, warning and information colours. `--sys-color-success`, `--
 ## Alternatives considered
 
 - **One generic `update { id, patch }` operation.** Fewer types, but a patch can say anything, so every reader has to work out what it changed, and the refusal reasons become vague. Named operations say what they do, are refused for named reasons, and are what a later collaboration or audit log would want to record.
+- **Applying only valid final values, on blur.** It would make a taken name or a clash impossible to leave behind, but the canvas would not follow the typing. Applying as typed and taking the run back on leaving gives both.
 - **Merging by time** (keystrokes less than a second apart are one step). It depends on how fast someone types, and two separate edits of one field made quickly become one. A run that ends when the field loses focus is what people mean by "one edit", and it is testable.
 - **Merging by target** (every change of `label` on one instance is one step). Two edits of the label a minute apart would undo together.
 - **Committing on blur or Enter.** The canvas would not change as you type, which the spec asks for, and an edit abandoned by closing the tab would be lost.
@@ -131,7 +144,7 @@ Alert needs success, warning and information colours. `--sys-color-success`, `--
 
 ## Consequences
 
-- Frozen after this phase, changeable only through a new ADR: the edit operations and their refusals; how changes merge into undo steps (`merge` keys, one run per field focus); the panel being generated from definitions, one editor per kind; the Appearance editor's props; Tabs regions keyed by stable keys.
+- Frozen after this phase, changeable only through a new ADR: the edit operations and their refusals; how changes merge into undo steps (`merge` keys, one run per field focus, ended by `end-run` or taken back by `revert-run` when the field is left); the panel being generated from definitions, one editor per kind; the Appearance editor's props; Tabs regions keyed by stable keys.
 - A component that adds a setting gets an editor for free when its kind exists; a new kind needs an editor, and the compiler says so.
 - A setting whose value is valid alone but not with another needs a constraint on the definition, not a check in the panel.
 - Every slot element carries `data-form-slot`. Snapshot tests of components see one more attribute.

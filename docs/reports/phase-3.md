@@ -1,6 +1,19 @@
 # Phase 3 report
 
-> Last update: 15 Nov 2026. The phase is complete: every requirement in sections 3 to 5 is built, ADR 0009 is written, and every check passed in the session before the one push. What CI is expected to say is at the end. Per the working rules, CI is not watched and this report is not updated with its result.
+> Last update: 15 Nov 2026. The phase is complete: every requirement in sections 3 to 5 is built, ADR 0009 is written, and every check passed in the session before the one push. The first pull request was merged; the fixes from the Chrome checks (below) follow in a second one, after every check passed again. What CI is expected to say is at the end. Per the working rules, CI is not watched and this report is not updated with its result.
+
+## Fixes after the Chrome checks
+
+The Chrome pass of section 9 found four problems. All are fixed, with tests:
+
+| Found | Cause | Fix | Tests |
+| --- | --- | --- | --- |
+| A field left with an invalid value left a half-typed value saved: "textField" on the way to the taken "textField2", no maximum on the way from 5 to -3, a minimum of 1 on the way to 10, "person.firstNam" on the way to a clashing path | Valid values are applied as they are typed, and nothing undid them when the final value was not valid | A run of edits now ends when its field is left or goes away. With a valid value it is kept (`end-run`); with one that cannot be stored it is taken back (`revert-run`): the document returns to what it was when the field took focus, the run leaves no undo step, and the field shows the document's value without its error (ADR 0009, section 2) | Model: `edits.test.ts` ("a run of edits ends"); the property-based test now runs `end-run` and `revert-run` too. Panel: `properties.test.tsx`. End to end: the four cases above, in C3-4 and C3-5 |
+| After undo or redo, a field showed the restored value with the old error | Errors were state of the field, untouched by a jump of the document | The store has an `epoch` that goes up on undo, redo, a run taken back and a reload; every field drops its draft and its error when it changes | Panel and end to end ("after undo, a field shows the restored value without its old error") |
+| Focus dropped to the page after a reset button, removing a tab or option, or a problem's fix | The pressed button went away with what it changed | Focus moves after the change is drawn: a reset to the setting's or property's editor (or the slot, for a whole slot); a removed row to the row that takes its place, the one before, or Add; a moved row follows the row; a fix to the next fix, then what was fixed, then the name | Panel (five cases) and end to end |
+| The live region said only the first keystroke of a run ("Label of textField3: “P”.") | A run was announced on its first change | Nothing is said while a run goes on; `end-run` says the run once, with its final value. A Columns run says what it hid or showed as a whole | Model, panel, and C3-14 end to end |
+
+The Appearance editor's props gained `onRunEnd` and `resetKey` for the same reasons; it still knows nothing of the designer.
 
 ## Status
 
@@ -66,15 +79,15 @@
 | Suite | Count | Phase 2 |
 | --- | --- | --- |
 | Server and contracts (`cargo test`) | 82 | 82 |
-| Frontend unit (Vitest) | 897 | 791 |
+| Frontend unit (Vitest) | 912 | 791 |
 | Style guard (`node --test`) | 9 | 9 |
-| End-to-end (Playwright, release binary) | 128 | 111 |
+| End-to-end (Playwright, release binary) | 134 | 111 |
 
 **Acceptance checks**
 
 | Check | Covered by |
 | --- | --- |
-| C3-1 to C3-14 | `web/e2e/properties.spec.ts`, each named in its test title |
+| C3-1 to C3-14 | `web/e2e/properties.spec.ts`, each named in its test title. C3-4 and C3-5 also have the cases found in the Chrome checks: a taken name, a clashing data path, a maximum typed as -3 and a minimum of 10 under a maximum of 5, each typed key by key and then left |
 | C3-15 Small fixes | `web/e2e/properties.spec.ts`: one tab stop in the toolbox, `role="status"`, and the ring at least 3 px outside the instance. The look of the spacing is by eye |
 | C3-16 Valid documents | `web/src/designer/model/editor.property.test.ts` now runs renames, data paths, settings, resets, styles and the form's name and description, valid and invalid, some merged into runs, from starting documents that include the new components. I checked that it fails when a bug is put in: a rename that skips the uniqueness check, a data path that skips the clash check |
 | C3-17 Earlier phases | The 111 Phase 0 to 2 end-to-end tests run in the same suite (two changed, see deviation 9) |
@@ -95,7 +108,7 @@
 
 Decisions the spec left to me:
 
-- **Errors stay until fixed.** An invalid value is kept in its field with the reason under it, and the document keeps its last valid value. Undo, or another selection, puts the field back to what the document has.
+- **An invalid value is shown until the field is left.** While the field has focus, what is typed stays, with the reason under it. Leaving the field takes the whole run back, so the document is as it was when the field took focus.
 - **Undo works from the panel's fields.** Ctrl+Z in a panel field is the designer's undo, a run of typing at a time, not the field's own. The same in the colour picker's popup: otherwise the browser's own undo acts on whichever field it last saw typed into (an end-to-end test found that).
 - **Choosing the default value stores it.** Only Reset returns a setting to its default. A value chosen on purpose should not move when a default changes later (the Phase 4 theme).
 - **Emptying an optional field resets it.** Empty text means "not set" for those settings (ADR 0003).
@@ -136,7 +149,7 @@ Changes to earlier phases' code, beyond adding to it:
 - Keeping an invalid draft when another component is selected and then selected again. Today the field shows the document's value again.
 - A Card that has nothing to show in read-only mode (only buttons inside) still draws its frame. Container hides itself in that case; Card should too.
 - The slot outline's name tag can sit over a label when the slot is narrow (a radio item). It is a hint shown while pointing.
-- Splitting the JavaScript bundle: now 844 kB (266 kB gzipped).
+- Splitting the JavaScript bundle: now 846 kB (267 kB gzipped).
 - Still open from earlier phases: touch dragging, deleting forms from the UI, a designer layout for narrow windows, retrying a failed save by itself, locale-aware formats, and an automated guard for raw values in components.
 
 ## Blockers
@@ -166,16 +179,16 @@ From the repository root:
 | --- | --- |
 | Typecheck (`tsc -b`) | Pass |
 | Lint (oxlint with warnings as errors, Prettier) | Pass |
-| Frontend unit tests, 897 in 40 files | Pass |
+| Frontend unit tests, 912 in 40 files | Pass |
 | Frontend build | Pass |
 | `cargo fmt --check`, clippy with `-D warnings` | Pass |
 | Rust tests, 82 | Pass |
 | Generated types up to date | Pass (no contract changed) |
-| Style guard and its 9 tests, 234 files | Pass |
+| Style guard and its 9 tests, 235 files | Pass |
 | Linux release build (static musl, 6.1 MB) | Pass |
 | Smoke test of that binary | Pass |
-| Playwright, 128 tests against the release binary | Pass, three full runs (two before the last code change, one after) |
-| The 17 Phase 3 tests repeated 4 times on 4 workers, to look for flakiness | 68 of 68 |
+| Playwright, 134 tests against the release binary | Pass, two full runs in a row on the final code |
+| The 23 Phase 3 tests repeated 4 times on 4 workers, to look for flakiness | 92 of 92 |
 
 **Expected in CI on the pull request**
 
@@ -185,7 +198,7 @@ From the repository root:
 | Server (format, clippy, tests, generated types) | Pass |
 | Style guard | Pass |
 | Release binary, Linux x86_64 static (build and smoke test) | Pass |
-| End-to-end tests against the Linux binary | Pass, 128 of 128 |
+| End-to-end tests against the Linux binary | Pass, 134 of 134 |
 | GitHub Release | Skipped (runs only on `phase-*` tags) |
 | Windows and macOS builds | Not run. They run only when the workflow is started by hand |
 

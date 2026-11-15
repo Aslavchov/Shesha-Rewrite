@@ -17,6 +17,7 @@ import type { ColorValue, SlotStyle } from "@/generated"
 
 import { STYLE_PROPERTIES, STYLE_PROPERTY_LABELS, type StyleProperty } from "../model/editor"
 import { describedBy } from "../properties/described-by"
+import { focusSoon, type RunEnd } from "../properties/edit-run"
 import { PropertyRow } from "../properties/property-row"
 import { colourName, slotLabel } from "./colours"
 import { ColourPicker } from "./colour-picker"
@@ -55,6 +56,14 @@ export type AppearanceEditorProps = {
   ) => void
   /** Every override of one slot removed. */
   readonly onResetSlot: (slot: string) => void
+  /**
+   * A run of typed edits is over (a hex colour): `keep` is false when the
+   * field was left with a value that is not valid, and the run should be
+   * taken back.
+   */
+  readonly onRunEnd: RunEnd
+  /** Changes when the values jump (undo, redo): typed values and their errors are dropped. */
+  readonly resetKey: number
   /** The slot being pointed at (hovered or focused), or null: to show it where it is drawn. */
   readonly onPoint?: (slot: string | null) => void
   /** The start of every test id. */
@@ -99,10 +108,13 @@ function SlotEditor({
   defaults,
   onChange,
   onResetSlot,
+  onRunEnd,
+  resetKey,
   onPoint,
   testIdPrefix = "props",
 }: AppearanceEditorProps & { slot: string }) {
   const [open, setOpen] = React.useState(false)
+  const toggleRef = React.useRef<HTMLButtonElement>(null)
   const bodyId = React.useId()
   const style = styles?.[slot] ?? {}
   const count = Object.keys(style).length
@@ -121,6 +133,7 @@ function SlotEditor({
       <div className="flex items-center gap-1">
         <button
           type="button"
+          ref={toggleRef}
           data-testid={`${testIdPrefix}-slot-${slot}`}
           aria-expanded={open}
           aria-controls={bodyId}
@@ -150,7 +163,11 @@ function SlotEditor({
                   size="icon-sm"
                   data-testid={`${testIdPrefix}-style-reset-${slot}`}
                   aria-label={`Reset every style of ${label.toLowerCase()}`}
-                  onClick={() => onResetSlot(slot)}
+                  onClick={() => {
+                    onResetSlot(slot)
+                    // The reset button goes with the overrides: focus stays on the part.
+                    focusSoon(() => toggleRef.current)
+                  }}
                 />
               }
             >
@@ -173,6 +190,8 @@ function SlotEditor({
                 defaultsLabel={defaults.label}
                 testIdPrefix={testIdPrefix}
                 onChange={onChange}
+                onRunEnd={onRunEnd}
+                resetKey={resetKey}
               />
             ))
           : null}
@@ -190,6 +209,8 @@ function PropertyEditor({
   defaultsLabel,
   testIdPrefix,
   onChange,
+  onRunEnd,
+  resetKey,
 }: {
   slot: string
   property: StyleProperty
@@ -199,6 +220,8 @@ function PropertyEditor({
   defaultsLabel: string
   testIdPrefix: string
   onChange: AppearanceEditorProps["onChange"]
+  onRunEnd: RunEnd
+  resetKey: number
 }) {
   const id = React.useId()
   const testId = `${testIdPrefix}-style-${slot}-${property}`
@@ -216,7 +239,11 @@ function PropertyEditor({
       isSet={isSet}
       defaultText=""
       resetTestId={`${testIdPrefix}-style-reset-${slot}-${property}`}
-      onReset={() => onChange(slot, property, undefined)}
+      onReset={() => {
+        onChange(slot, property, undefined)
+        // The reset button goes with the override: focus moves to the property's editor.
+        focusSoon(() => document.getElementById(id))
+      }}
     >
       {scale ? (
         <ScaleSelect
@@ -236,6 +263,8 @@ function PropertyEditor({
           inherited={inheritedText}
           describedBy={describedBy(id, null, undefined)}
           onChange={(colour, run) => onChange(slot, property, colour, run)}
+          onRunEnd={onRunEnd}
+          resetKey={resetKey}
         />
       )}
     </PropertyRow>
