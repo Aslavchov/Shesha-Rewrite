@@ -739,8 +739,12 @@ test.describe("C3-14 Keyboard", () => {
     await page.keyboard.press("Enter")
     await tabTo(page, "props-style-root-background")
     await page.keyboard.press("Enter")
-    await expect(page.getByTestId("props-token-muted")).toBeVisible()
-    await tabTo(page, "props-token-muted", 20)
+    // The swatches are one Tab stop (Phase 4, section 6): the arrow keys move between them.
+    await expect(page.getByTestId("props-token-foreground")).toBeFocused()
+    while ((await focusRing(page))?.testId !== "props-token-muted") {
+      await page.keyboard.press("ArrowRight")
+      expect((await focusRing(page))?.hasRing).toBe(true)
+    }
     await page.keyboard.press("Enter")
     await expect(liveRegion(page)).toHaveText("Background of root of textArea1: the muted colour.")
     await expect

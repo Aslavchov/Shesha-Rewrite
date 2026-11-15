@@ -12,7 +12,16 @@
  *            the palette and are redefined under `.dark`; type, space, radius,
  *            shadow, motion and layout hold their value directly.
  *
- * See docs/adr/0002-tokens.md.
+ * A theme (ADR 0010) changes system tokens only, and only through the
+ * `--theme-*` properties read below: `--theme-<token>` in light mode and
+ * `--theme-dark-<token>` in dark mode for colours, and `--theme-radius-base`,
+ * `--theme-text-scale` and `--theme-space-unit`. Without one, the value after
+ * the comma applies: the built-in look. The system tokens are declared on
+ * `[data-theme-scope]` as well as on the page, so that a theme set on such an
+ * element restyles that part of the page only; its value, "light" or "dark",
+ * chooses the scheme there.
+ *
+ * See docs/adr/0002-tokens.md and docs/adr/0010-themes.md.
  */
 
 /* ---------------------------------------------------------------------------
@@ -68,12 +77,13 @@
 /* ---------------------------------------------------------------------------
  * Tier 2 — system tokens: colour (light)
  * ------------------------------------------------------------------------ */
-:root {
+:root,
+[data-theme-scope] {
   color-scheme: light;
 
   /* Surfaces and text */
-  --sys-color-background: var(--ref-neutral-0);
-  --sys-color-foreground: var(--ref-neutral-950);
+  --sys-color-background: var(--theme-background, var(--ref-neutral-0));
+  --sys-color-foreground: var(--theme-foreground, var(--ref-neutral-950));
   --sys-color-surface: var(--ref-neutral-0);
   --sys-color-surface-foreground: var(--ref-neutral-950);
   --sys-color-surface-raised: var(--ref-neutral-0);
@@ -85,28 +95,31 @@
   --sys-color-subtle-foreground: var(--ref-neutral-900);
 
   /* Brand */
-  --sys-color-primary: var(--ref-blue-600);
-  --sys-color-primary-hover: var(--ref-blue-700);
-  --sys-color-primary-foreground: var(--ref-neutral-0);
+  --sys-color-primary: var(--theme-primary, var(--ref-blue-600));
+  --sys-color-primary-hover: var(--theme-primary-hover, var(--ref-blue-700));
+  --sys-color-primary-foreground: var(--theme-primary-foreground, var(--ref-neutral-0));
 
   /* Feedback */
-  --sys-color-destructive: var(--ref-red-600);
-  --sys-color-success: var(--ref-green-700);
-  --sys-color-warning: var(--ref-amber-700);
-  --sys-color-info: var(--ref-blue-600);
+  --sys-color-destructive: var(--theme-destructive, var(--ref-red-600));
+  --sys-color-success: var(--theme-success, var(--ref-green-700));
+  --sys-color-warning: var(--theme-warning, var(--ref-amber-700));
+  --sys-color-info: var(--theme-info, var(--ref-blue-600));
 
   /* Lines */
   --sys-color-border: var(--ref-neutral-200);
   --sys-color-border-control: var(--ref-neutral-300);
-  --sys-color-focus-ring: var(--ref-blue-600);
+  --sys-color-focus-ring: var(--theme-primary, var(--ref-blue-600));
   --sys-color-overlay: var(--ref-black-a40);
 
   /* Sidebar */
-  --sys-color-sidebar: var(--ref-neutral-50);
-  --sys-color-sidebar-foreground: var(--ref-neutral-700);
-  --sys-color-sidebar-accent: var(--ref-neutral-200);
-  --sys-color-sidebar-accent-foreground: var(--ref-neutral-950);
-  --sys-color-sidebar-border: var(--ref-neutral-200);
+  --sys-color-sidebar: var(--theme-sidebar, var(--ref-neutral-50));
+  --sys-color-sidebar-foreground: var(--theme-sidebar-foreground, var(--ref-neutral-700));
+  --sys-color-sidebar-accent: var(--theme-sidebar-accent, var(--ref-neutral-200));
+  --sys-color-sidebar-accent-foreground: var(
+    --theme-sidebar-accent-foreground,
+    var(--ref-neutral-950)
+  );
+  --sys-color-sidebar-border: var(--theme-sidebar-border, var(--ref-neutral-200));
 
   /* Shadow tint and strength (see --sys-shadow-*) */
   --sys-shadow-color: var(--ref-neutral-950);
@@ -116,11 +129,12 @@
 /* ---------------------------------------------------------------------------
  * Tier 2 — system tokens: colour (dark)
  * ------------------------------------------------------------------------ */
-.dark {
+.dark,
+[data-theme-scope="dark"] {
   color-scheme: dark;
 
-  --sys-color-background: var(--ref-neutral-950);
-  --sys-color-foreground: var(--ref-neutral-50);
+  --sys-color-background: var(--theme-dark-background, var(--ref-neutral-950));
+  --sys-color-foreground: var(--theme-dark-foreground, var(--ref-neutral-50));
   --sys-color-surface: var(--ref-neutral-900);
   --sys-color-surface-foreground: var(--ref-neutral-50);
   --sys-color-surface-raised: var(--ref-neutral-800);
@@ -133,25 +147,28 @@
 
   /* #003BB2 reaches only 2.1:1 against the dark background, so dark mode
      uses a lighter tint of the same hue with dark text on top. */
-  --sys-color-primary: var(--ref-blue-400);
-  --sys-color-primary-hover: var(--ref-blue-300);
-  --sys-color-primary-foreground: var(--ref-blue-950);
+  --sys-color-primary: var(--theme-dark-primary, var(--ref-blue-400));
+  --sys-color-primary-hover: var(--theme-dark-primary-hover, var(--ref-blue-300));
+  --sys-color-primary-foreground: var(--theme-dark-primary-foreground, var(--ref-blue-950));
 
-  --sys-color-destructive: var(--ref-red-400);
-  --sys-color-success: var(--ref-green-400);
-  --sys-color-warning: var(--ref-amber-300);
-  --sys-color-info: var(--ref-blue-300);
+  --sys-color-destructive: var(--theme-dark-destructive, var(--ref-red-400));
+  --sys-color-success: var(--theme-dark-success, var(--ref-green-400));
+  --sys-color-warning: var(--theme-dark-warning, var(--ref-amber-300));
+  --sys-color-info: var(--theme-dark-info, var(--ref-blue-300));
 
   --sys-color-border: var(--ref-white-a10);
   --sys-color-border-control: var(--ref-white-a15);
-  --sys-color-focus-ring: var(--ref-blue-400);
+  --sys-color-focus-ring: var(--theme-dark-primary, var(--ref-blue-400));
   --sys-color-overlay: var(--ref-black-a60);
 
-  --sys-color-sidebar: var(--ref-neutral-900);
-  --sys-color-sidebar-foreground: var(--ref-neutral-300);
-  --sys-color-sidebar-accent: var(--ref-neutral-800);
-  --sys-color-sidebar-accent-foreground: var(--ref-neutral-50);
-  --sys-color-sidebar-border: var(--ref-white-a10);
+  --sys-color-sidebar: var(--theme-dark-sidebar, var(--ref-neutral-900));
+  --sys-color-sidebar-foreground: var(--theme-dark-sidebar-foreground, var(--ref-neutral-300));
+  --sys-color-sidebar-accent: var(--theme-dark-sidebar-accent, var(--ref-neutral-800));
+  --sys-color-sidebar-accent-foreground: var(
+    --theme-dark-sidebar-accent-foreground,
+    var(--ref-neutral-50)
+  );
+  --sys-color-sidebar-border: var(--theme-dark-sidebar-border, var(--ref-white-a10));
 
   --sys-shadow-color: oklch(0 0 0);
   --sys-shadow-strength: 3;
@@ -160,7 +177,8 @@
 /* ---------------------------------------------------------------------------
  * Tier 2 — system tokens: everything that does not change with the scheme
  * ------------------------------------------------------------------------ */
-:root {
+:root,
+[data-theme-scope] {
   /* Typography. Inter is the fixed brand typeface, self-hosted (fonts.css). */
   --sys-font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
@@ -168,21 +186,23 @@
   --sys-font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  /* Type scale: size / line height. 14px is the UI default. */
-  --sys-text-xs: 0.75rem;
-  --sys-text-xs-line-height: 1rem;
-  --sys-text-sm: 0.875rem;
-  --sys-text-sm-line-height: 1.25rem;
-  --sys-text-base: 1rem;
-  --sys-text-base-line-height: 1.5rem;
-  --sys-text-lg: 1.125rem;
-  --sys-text-lg-line-height: 1.75rem;
-  --sys-text-xl: 1.25rem;
-  --sys-text-xl-line-height: 1.75rem;
-  --sys-text-2xl: 1.5rem;
-  --sys-text-2xl-line-height: 2rem;
-  --sys-text-3xl: 1.875rem;
-  --sys-text-3xl-line-height: 2.25rem;
+  /* Type scale: size / line height. 14px is the UI default; a theme scales
+     the whole scale together (ADR 0010). */
+  --sys-text-scale: var(--theme-text-scale, 1);
+  --sys-text-xs: calc(0.75rem * var(--sys-text-scale));
+  --sys-text-xs-line-height: calc(1rem * var(--sys-text-scale));
+  --sys-text-sm: calc(0.875rem * var(--sys-text-scale));
+  --sys-text-sm-line-height: calc(1.25rem * var(--sys-text-scale));
+  --sys-text-base: calc(1rem * var(--sys-text-scale));
+  --sys-text-base-line-height: calc(1.5rem * var(--sys-text-scale));
+  --sys-text-lg: calc(1.125rem * var(--sys-text-scale));
+  --sys-text-lg-line-height: calc(1.75rem * var(--sys-text-scale));
+  --sys-text-xl: calc(1.25rem * var(--sys-text-scale));
+  --sys-text-xl-line-height: calc(1.75rem * var(--sys-text-scale));
+  --sys-text-2xl: calc(1.5rem * var(--sys-text-scale));
+  --sys-text-2xl-line-height: calc(2rem * var(--sys-text-scale));
+  --sys-text-3xl: calc(1.875rem * var(--sys-text-scale));
+  --sys-text-3xl-line-height: calc(2.25rem * var(--sys-text-scale));
 
   --sys-font-weight-normal: 400;
   --sys-font-weight-medium: 500;
@@ -199,7 +219,7 @@
   --sys-tracking-wide: 0.025em;
 
   /* Spacing: every gap, padding and control height is a multiple of this unit. */
-  --sys-space-unit: 0.25rem;
+  --sys-space-unit: var(--theme-space-unit, 0.25rem);
 
   /* Named steps of the space scale. A form document refers to these by name
      for gaps between components and for padding overrides (ADR 0006). */
@@ -211,7 +231,7 @@
   --sys-space-xl: calc(var(--sys-space-unit) * 8);
 
   /* Radius: one base value; the scale is derived from it. */
-  --sys-radius-base: 0.5rem;
+  --sys-radius-base: var(--theme-radius-base, 0.5rem);
   --sys-radius-none: 0rem;
   --sys-radius-sm: calc(var(--sys-radius-base) * 0.5);
   --sys-radius-md: calc(var(--sys-radius-base) * 0.75);
@@ -278,6 +298,8 @@
   --sys-size-sidebar-mobile: 18rem;
   --sys-size-header: 3.5rem;
   --sys-size-content: 64rem;
+  /* A page that works side by side with a preview (the theme editor). */
+  --sys-size-content-wide: 88rem;
   /* The designer: its toolbox on the left, and the outline and properties on the right. */
   --sys-size-designer-toolbox: 15rem;
   --sys-size-designer-panel: 19rem;

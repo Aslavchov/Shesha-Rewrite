@@ -104,9 +104,11 @@ export function OutlinePanel() {
   const tabStop = instances.find((node) => node.instance.id === selection) ?? instances[0]
 
   return (
+    // The outline takes what its rows need, up to a third of the column; the
+    // properties get the rest, at least two thirds (Phase 4, section 6).
     <section
       aria-labelledby="designer-outline-title"
-      className="flex min-h-24 shrink-0 basis-2/5 flex-col lg:min-h-0"
+      className="flex min-h-24 shrink-0 flex-col lg:max-h-1/3 lg:min-h-0"
     >
       <PanelTitle id="designer-outline-title">Outline</PanelTitle>
       <div

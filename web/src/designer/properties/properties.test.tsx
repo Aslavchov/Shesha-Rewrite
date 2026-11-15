@@ -6,7 +6,13 @@ import { RouterProvider } from "react-router/dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { registry } from "@/forms/registry"
-import { createRegistry, defineStatic, type Registry } from "@/forms/runtime"
+import {
+  createRegistry,
+  defineStatic,
+  type Registry,
+  type ThemeStyles,
+  ThemeStylesContext,
+} from "@/forms/runtime"
 import { optionalText, text } from "@/forms/runtime/settings"
 import type { ComponentInstance, FormRecord } from "@/generated"
 
@@ -30,7 +36,7 @@ afterEach(() => vi.useRealTimers())
 
 function renderDesigner(
   components: ComponentInstance[] = [],
-  options: { registry?: Registry } = {},
+  options: { registry?: Registry; themeStyles?: ThemeStyles } = {},
 ) {
   const record: FormRecord = {
     id: "f1",
@@ -61,7 +67,11 @@ function renderDesigner(
     ],
     { initialEntries: ["/designer/f1"] },
   )
-  render(<RouterProvider router={router} />)
+  render(
+    <ThemeStylesContext value={options.themeStyles ?? {}}>
+      <RouterProvider router={router} />
+    </ThemeStylesContext>,
+  )
   return { user: userEvent.setup(), save }
 }
 
@@ -294,6 +304,37 @@ describe("appearance (spec 3.4)", () => {
 
     await user.click(screen.getByTestId("props-style-reset-control-background"))
     expect(control.style.backgroundColor).toBe("")
+  })
+
+  it("shows where an unset style comes from: the theme, or the component (spec 3.4, C4-8)", async () => {
+    const { user } = renderDesigner([field("a")], {
+      themeStyles: { "text-field": { control: { background: { token: "success" } } } },
+    })
+    await user.click(row("a"))
+    await user.click(screen.getByTestId("props-slot-control"))
+    const control = within(screen.getByTestId("designer-canvas")).getByTestId("field-a-control")
+    const source = screen.getByTestId("props-style-source-control-background")
+    const editor = screen.getByTestId("props-style-control-background")
+
+    // Inherited from the theme, said in words, and what the editor is described by.
+    expect(control.style.backgroundColor).toBe("var(--sys-color-success)")
+    expect(source).toHaveTextContent("From the theme")
+    expect(editor).toHaveAccessibleName("Background: From the theme: Success")
+    expect(editor).toHaveAccessibleDescription("From the theme")
+    expect(screen.getByTestId("props-style-source-control-radius")).toHaveTextContent("Default")
+
+    await user.click(editor)
+    await user.click(await screen.findByTestId("props-token-muted"))
+    expect(control.style.backgroundColor).toBe("var(--sys-color-muted)")
+    expect(screen.getByTestId("props-style-source-control-background")).toHaveTextContent(
+      "Set here",
+    )
+
+    await user.click(screen.getByTestId("props-style-reset-control-background"))
+    expect(control.style.backgroundColor).toBe("var(--sys-color-success)")
+    expect(screen.getByTestId("props-style-source-control-background")).toHaveTextContent(
+      "From the theme",
+    )
   })
 
   it("points at the slot on the canvas while it is hovered in the panel", async () => {

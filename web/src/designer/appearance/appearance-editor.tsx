@@ -16,10 +16,9 @@ import { FONT_WEIGHTS, RADIUS_STEPS, SPACE_STEPS } from "@/forms/runtime"
 import type { ColorValue, SlotStyle } from "@/generated"
 
 import { STYLE_PROPERTIES, STYLE_PROPERTY_LABELS, type StyleProperty } from "../model/editor"
-import { describedBy } from "../properties/described-by"
 import { focusSoon, type RunEnd } from "../properties/edit-run"
 import { PropertyRow } from "../properties/property-row"
-import { colourName, slotLabel } from "./colours"
+import { colourName, slotLabel, themeColourChoices } from "./colours"
 import { ColourPicker } from "./colour-picker"
 
 /**
@@ -39,6 +38,14 @@ export type AppearanceDefaults = {
   readonly label: string
   /** Values that apply when none is set here, by slot. Phase 3 has none. */
   readonly styles?: Readonly<Record<string, SlotStyle>>
+  /**
+   * What an unset value is called when `styles` holds nothing for it:
+   * "Default", under a theme that says nothing about the property. Without
+   * it, `label`. Added in Phase 4 (ADR 0010), as is `setLabel`.
+   */
+  readonly fallbackLabel?: string
+  /** What a value set here is called, such as "Set here". */
+  readonly setLabel?: string
 }
 
 export type AppearanceEditorProps = {
@@ -187,7 +194,7 @@ function SlotEditor({
                 label={STYLE_PROPERTY_LABELS[property]}
                 value={style[property]}
                 inherited={defaults.styles?.[slot]?.[property]}
-                defaultsLabel={defaults.label}
+                defaults={defaults}
                 testIdPrefix={testIdPrefix}
                 onChange={onChange}
                 onRunEnd={onRunEnd}
@@ -206,7 +213,7 @@ function PropertyEditor({
   label,
   value,
   inherited,
-  defaultsLabel,
+  defaults,
   testIdPrefix,
   onChange,
   onRunEnd,
@@ -217,7 +224,7 @@ function PropertyEditor({
   label: string
   value: SlotStyle[StyleProperty] | undefined
   inherited: SlotStyle[StyleProperty] | undefined
-  defaultsLabel: string
+  defaults: AppearanceDefaults
   testIdPrefix: string
   onChange: AppearanceEditorProps["onChange"]
   onRunEnd: RunEnd
@@ -227,17 +234,23 @@ function PropertyEditor({
   const testId = `${testIdPrefix}-style-${slot}-${property}`
   const isSet = value !== undefined
   const scale = SCALES[property]
+  // Where the value comes from, in words (spec 3.4): read by everyone, and
+  // what the editor is described by.
+  const fallback = defaults.fallbackLabel ?? defaults.label
+  const origin = inherited === undefined ? fallback : defaults.label
+  const source = isSet ? (defaults.setLabel ?? "Set here") : origin
   const inheritedText =
     inherited === undefined
-      ? defaultsLabel
-      : `${defaultsLabel}: ${typeof inherited === "object" ? colourName(inherited) : (SCALE_LABELS[inherited] ?? inherited)}`
+      ? fallback
+      : `${defaults.label}: ${typeof inherited === "object" ? colourName(inherited) : (SCALE_LABELS[inherited] ?? colourName(inherited))}`
+  const choices = React.useMemo(() => themeColourChoices(testIdPrefix), [testIdPrefix])
 
   return (
     <PropertyRow
       id={id}
       label={label}
       isSet={isSet}
-      defaultText=""
+      source={{ text: source, testId: `${testIdPrefix}-style-source-${slot}-${property}` }}
       resetTestId={`${testIdPrefix}-style-reset-${slot}-${property}`}
       onReset={() => {
         onChange(slot, property, undefined)
@@ -252,6 +265,7 @@ function PropertyEditor({
           scale={scale}
           value={typeof value === "string" ? value : undefined}
           inherited={inheritedText}
+          describedBy={`${id}-source`}
           onChange={(step) => onChange(slot, property, step as SlotStyle[StyleProperty])}
         />
       ) : (
@@ -261,7 +275,9 @@ function PropertyEditor({
           label={label}
           value={value as ColorValue | undefined}
           inherited={inheritedText}
-          describedBy={describedBy(id, null, undefined)}
+          inheritedValue={inherited as ColorValue | undefined}
+          choices={choices}
+          describedBy={`${id}-source`}
           onChange={(colour, run) => onChange(slot, property, colour, run)}
           onRunEnd={onRunEnd}
           resetKey={resetKey}
@@ -279,6 +295,7 @@ function ScaleSelect({
   scale,
   value,
   inherited,
+  describedBy,
   onChange,
 }: {
   id: string
@@ -286,6 +303,7 @@ function ScaleSelect({
   scale: readonly string[]
   value: string | undefined
   inherited: string
+  describedBy: string
   onChange: (step: string | undefined) => void
 }) {
   const current = value ?? UNSET
@@ -296,7 +314,7 @@ function ScaleSelect({
         if (typeof step === "string") onChange(step === UNSET ? undefined : step)
       }}
     >
-      <SelectTrigger id={id} data-testid={testId} className="w-full">
+      <SelectTrigger id={id} data-testid={testId} aria-describedby={describedBy} className="w-full">
         <SelectValue>
           {current === UNSET ? (
             <span className="text-muted-foreground">{inherited}</span>

@@ -41,5 +41,7 @@ export {
   type Slots,
   slotStyle,
   SPACE_STEPS,
+  type ThemeStyles,
 } from "./styles"
+export { ThemeStylesContext } from "./theme"
 export type { NestedValues } from "./values"

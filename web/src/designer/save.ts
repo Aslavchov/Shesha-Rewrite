@@ -28,32 +28,37 @@ export const AUTOSAVE_DELAY_MS = 700
 /** The server's code for a save based on a revision that is no longer current. */
 const REVISION_CONFLICT = "revision_conflict"
 
-export type SendSave = (
+/**
+ * `D` is the document being saved and `R` what the server answers with. They
+ * default to a form's; the theme editor saves its draft the same way
+ * (ADR 0010).
+ */
+export type SendSave<D = FormDocument, R extends { revision: number } = FormRecord> = (
   revision: number,
-  document: FormDocument,
+  document: D,
   options: { keepalive: boolean },
-) => Promise<FormRecord>
+) => Promise<R>
 
-export class Autosave {
-  readonly #send: SendSave
+export class Autosave<D = FormDocument, R extends { revision: number } = FormRecord> {
+  readonly #send: SendSave<D, R>
   readonly #delay: number
-  readonly #onSaved: (record: FormRecord) => void
+  readonly #onSaved: (record: R) => void
   readonly #listeners = new Set<() => void>()
   #status: SaveStatus = SAVED
   #revision: number
   /** The document the server has. */
-  #saved: FormDocument
+  #saved: D
   /** The document on screen. */
-  #current: FormDocument
+  #current: D
   /** The document on its way to the server. */
-  #sending: FormDocument | null = null
+  #sending: D | null = null
   #timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(options: {
-    record: Pick<FormRecord, "revision" | "document">
-    send: SendSave
+    record: { revision: number; document: D }
+    send: SendSave<D, R>
     delay?: number
-    onSaved?: (record: FormRecord) => void
+    onSaved?: (record: R) => void
   }) {
     this.#revision = options.record.revision
     this.#saved = options.record.document
@@ -81,7 +86,7 @@ export class Autosave {
    * Tells autosave what the document is now. Documents are compared by
    * identity, so undoing back to what was saved needs no save at all.
    */
-  changed(document: FormDocument): void {
+  changed(document: D): void {
     if (document === this.#current) return
     this.#current = document
     if (this.#status.kind === "conflict") return
@@ -107,12 +112,29 @@ export class Autosave {
   }
 
   /** Starts again from what the server has now: after a conflict was reloaded. */
-  restart(record: Pick<FormRecord, "revision" | "document">): void {
+  restart(record: { revision: number; document: D }): void {
     clearTimeout(this.#timer)
     this.#revision = record.revision
     this.#saved = record.document
     this.#current = record.document
     this.#set(SAVED)
+  }
+
+  /**
+   * Sends what is waiting, and resolves with the status once nothing is on
+   * its way: for an action that needs the server to have the latest document
+   * first (publishing a theme).
+   */
+  settle(): Promise<SaveStatus> {
+    this.flush()
+    if (this.#status.kind !== "saving") return Promise.resolve(this.#status)
+    return new Promise((resolve) => {
+      const unsubscribe = this.subscribe(() => {
+        if (this.#status.kind === "saving") return
+        unsubscribe()
+        resolve(this.#status)
+      })
+    })
   }
 
   /** Stops the timer. A save already on its way still completes. */

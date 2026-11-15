@@ -337,8 +337,18 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
               )}
             >
               {index === 0 && highlight ? (
-                // At the end, where a label never is.
-                <span className="absolute right-0 bottom-full mb-1 rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground">
+                // At the end, where a label never is. Above the part, unless
+                // the part starts at the top of its instance, where the
+                // instance's name badge is: then below it (Phase 4, section 6).
+                <span
+                  data-testid="canvas-slot-tag"
+                  className={cn(
+                    "absolute right-0 rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground",
+                    nearTop(box, layout.items.get(highlight.id))
+                      ? "top-full mt-1"
+                      : "bottom-full mb-1",
+                  )}
+                >
                   {highlight.slot}
                 </span>
               ) : null}
@@ -368,6 +378,17 @@ const boxStyle = (box: Box): BoxStyle => ({
   "--box-height": `${box.height}px`,
 })
 
+/**
+ * How close to its instance's top a part's box may start before its name tag
+ * would meet the instance's name badge, in pixels: the badge sits on the
+ * instance's top edge, half above it.
+ */
+const BADGE_ZONE = 24
+
+/** Whether a part starts where its instance's name badge is drawn. */
+const nearTop = (part: Box, instance: Box | undefined) =>
+  instance !== undefined && part.top - instance.top < BADGE_ZONE
+
 const BOXED = "absolute top-(--box-top) left-(--box-left) h-(--box-height) w-(--box-width)"
 
 /** How far outside a region its edge is drawn, so that it does not sit on its instances. */
@@ -378,7 +399,7 @@ function RegionEdges({ layout }: { layout: CanvasLayout }) {
   return [...layout.regions].map(([key, region]) => {
     // The form's own list needs no edge, and an empty region shows its drop target.
     if (key.startsWith("/") || region.empty) return null
-    const { left, top, width, height } = region.box
+    const { left, top, width, height } = region.inner ?? region.box
     const outer = {
       left: left - EDGE_OUTSET,
       top: top - EDGE_OUTSET,
@@ -480,6 +501,7 @@ function InstanceProxy({
       {isSelected ? (
         <span
           aria-hidden="true"
+          data-testid="canvas-name-badge"
           // A tab on the top edge, at the end where a label never is: it
           // names the selection without covering what is above or inside it.
           className="absolute -top-1 right-2 max-w-full -translate-y-1/2 truncate rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground"

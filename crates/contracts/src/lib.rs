@@ -6,11 +6,17 @@
 
 pub mod codegen;
 pub mod forms;
+pub mod themes;
 
 pub use forms::{
     ColorToken, ColorValue, ComponentInstance, CreateFormRequest, FORM_FORMAT_VERSION, FontWeight,
     FormDocument, FormList, FormRecord, FormSummary, MAX_JSON_DEPTH, MAX_REQUEST_BYTES, Radius,
     Settings, SlotStyle, Space, UpdateFormRequest,
+};
+pub use themes::{
+    Density, SaveThemeDraftRequest, THEME_COLOR_ROLES, THEME_FORMAT_VERSION, THEME_MAX_COMPONENTS,
+    THEME_MAX_SLOTS, THEME_RADIUS_MAX, THEME_RADIUS_MIN, THEME_TEXT_SIZE_MAX, THEME_TEXT_SIZE_MIN,
+    ThemeColor, ThemeColors, ThemeDocument, ThemeRecord, ThemeRevisionRequest, ThemeState,
 };
 
 use serde::{Deserialize, Serialize};

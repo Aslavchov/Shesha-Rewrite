@@ -212,3 +212,142 @@ fn forms_api_shapes() {
     let parsed: UpdateFormRequest = serde_json::from_value(update.clone()).unwrap();
     assert_eq!(serde_json::to_value(&parsed).unwrap(), update);
 }
+
+// --- Phase 4: the theme document and the theme API (ADR 0010, frozen) ------
+
+#[test]
+fn theme_document_shape() {
+    use contracts::{ColorValue, Density, Radius, ThemeDocument};
+
+    let value = json!({
+        "formatVersion": 1,
+        "colors": {
+            "primary": { "light": "#0F766E", "dark": "#5EEAD4" },
+            "destructive": { "light": "#B91C1C" },
+            "success": { "light": "#15803D" },
+            "warning": { "light": "#B45309" },
+            "info": { "light": "#0369A1" },
+            "background": { "dark": "#0A0A0A" },
+            "sidebar": {},
+        },
+        "radius": 12,
+        "textSize": 15,
+        "density": "comfortable",
+        "components": {
+            "button": { "root": { "background": { "token": "success" }, "radius": "full" } },
+            "not-registered": { "root": { "color": "#003BB2" } },
+        },
+    });
+
+    let theme: ThemeDocument = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(theme.format_version, contracts::THEME_FORMAT_VERSION);
+    let colors = theme.colors.as_ref().unwrap();
+    let primary = colors.primary.as_ref().unwrap();
+    assert_eq!(primary.light.as_deref(), Some("#0F766E"));
+    assert_eq!(primary.dark.as_deref(), Some("#5EEAD4"));
+    assert_eq!(colors.destructive.as_ref().unwrap().dark, None);
+    assert_eq!(theme.radius, Some(12));
+    assert_eq!(theme.text_size, Some(15));
+    assert_eq!(theme.density, Some(Density::Comfortable));
+    let root = &theme.components["button"]["root"];
+    assert!(matches!(&root.background, Some(ColorValue::Token(t)) if t.token == "success"));
+    assert_eq!(root.radius, Some(Radius::Full));
+    assert!(theme.components.contains_key("not-registered"));
+
+    assert_eq!(serde_json::to_value(&theme).unwrap(), value);
+}
+
+#[test]
+fn an_empty_theme_is_only_its_format_version() {
+    use contracts::ThemeDocument;
+
+    let value = json!({ "formatVersion": 1 });
+    let theme: ThemeDocument = serde_json::from_value(value.clone()).unwrap();
+
+    assert_eq!(theme.colors, None);
+    assert_eq!(theme.radius, None);
+    assert_eq!(theme.text_size, None);
+    assert_eq!(theme.density, None);
+    assert!(theme.components.is_empty());
+    assert_eq!(serde_json::to_value(&theme).unwrap(), value);
+}
+
+#[test]
+fn a_theme_takes_only_its_own_members() {
+    use contracts::{Density, ThemeDocument};
+
+    for value in [
+        json!({ "formatVersion": 1, "font": "Arial" }),
+        json!({ "formatVersion": 1, "colors": { "accent": { "light": "#003BB2" } } }),
+        json!({ "formatVersion": 1, "colors": { "primary": { "medium": "#003BB2" } } }),
+        json!({ "formatVersion": 1, "density": "tight" }),
+        json!({ "formatVersion": 1, "components": { "button": { "root": { "margin": "md" } } } }),
+    ] {
+        assert!(
+            serde_json::from_value::<ThemeDocument>(value.clone()).is_err(),
+            "{value}"
+        );
+    }
+    for name in ["compact", "regular", "comfortable"] {
+        assert_eq!(
+            serde_json::to_value(serde_json::from_value::<Density>(json!(name)).unwrap()).unwrap(),
+            json!(name)
+        );
+    }
+}
+
+#[test]
+fn the_colour_roles_are_the_members_of_theme_colors() {
+    use contracts::{THEME_COLOR_ROLES, ThemeColor, ThemeColors};
+
+    let role = || Some(ThemeColor::default());
+    let every_role = ThemeColors {
+        primary: role(),
+        destructive: role(),
+        success: role(),
+        warning: role(),
+        info: role(),
+        background: role(),
+        sidebar: role(),
+    };
+    let value = serde_json::to_value(&every_role).unwrap();
+    let members: Vec<&str> = value
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+
+    assert_eq!(members, THEME_COLOR_ROLES);
+}
+
+#[test]
+fn theme_api_shapes() {
+    use contracts::{SaveThemeDraftRequest, ThemeRecord, ThemeRevisionRequest, ThemeState};
+
+    let document = json!({ "formatVersion": 1, "radius": 4 });
+
+    let record = json!({
+        "revision": 3, "updatedAt": "2026-11-15T09:15:02.417Z", "document": document,
+    });
+    let parsed: ThemeRecord = serde_json::from_value(record.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), record);
+
+    let state = json!({
+        "published": {
+            "revision": 1, "updatedAt": "2026-11-15T09:00:00.000Z", "document": { "formatVersion": 1 },
+        },
+        "draft": record,
+        "unpublished": true,
+    });
+    let parsed: ThemeState = serde_json::from_value(state.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), state);
+
+    let save = json!({ "revision": 3, "document": document });
+    let parsed: SaveThemeDraftRequest = serde_json::from_value(save.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), save);
+
+    let revision = json!({ "revision": 3 });
+    let parsed: ThemeRevisionRequest = serde_json::from_value(revision.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), revision);
+}

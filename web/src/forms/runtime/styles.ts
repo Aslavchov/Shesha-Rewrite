@@ -175,3 +175,39 @@ export function resolveSlots<Slot extends string>(
   // just filled above.
   return { slots: { ...resolved, root } as Slots<Slot>, problems }
 }
+
+/**
+ * A theme's default styles for the slots of each component type (ADR 0010):
+ * component type, then slot, then the same typed properties an instance
+ * overrides.
+ */
+export type ThemeStyles = Readonly<Record<string, Readonly<Record<string, SlotStyle>>>>
+
+/**
+ * The middle of the merge order `definition ← theme ← instance` (ADR 0006):
+ * the theme's defaults for one component type, under what the instance set.
+ * Each property is merged by itself, so an instance that overrides a slot's
+ * colour keeps the theme's radius. Whatever the theme holds that this
+ * component cannot use (a slot it does not have, a value that is not valid)
+ * is left out; the theme editor is where that is reported.
+ */
+export function withThemeStyles<Slot extends string>(
+  declared: readonly Slot[],
+  slots: Slots<Slot>,
+  theme: Readonly<Record<string, SlotStyle>> | undefined,
+): Slots<Slot> {
+  if (theme === undefined) return slots
+  const all: Readonly<Record<string, SlotProps>> = slots
+  let merged: Record<string, SlotProps> | null = null
+  for (const slot of declared) {
+    const defaults = theme[slot]
+    if (defaults === undefined) continue
+    const { style } = slotStyle(slot, defaults)
+    if (style === undefined) continue
+    merged ??= { ...all }
+    const own = all[slot]
+    merged[slot] = { ...own, style: { ...style, ...own.style } }
+  }
+  // Asserted for the same reason as in `resolveSlots`: every slot is still there.
+  return merged === null ? slots : (merged as Slots<Slot>)
+}

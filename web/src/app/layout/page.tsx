@@ -1,4 +1,5 @@
 import * as React from "react"
+import { cn } from "cn"
 
 import { APP_NAME } from "@/generated"
 
@@ -11,6 +12,7 @@ export function Page({
   description,
   breadcrumb,
   actions,
+  wide = false,
   children,
 }: {
   title: string
@@ -19,10 +21,17 @@ export function Page({
   breadcrumb?: React.ReactNode
   /** Controls for the whole page, shown beside the title. */
   actions?: React.ReactNode
+  /** The page uses the width of the window: for an editor beside its preview. */
+  wide?: boolean
   children?: React.ReactNode
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-content flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8",
+        wide ? "max-w-content-wide" : "max-w-content",
+      )}
+    >
       <title>{`${title} · ${APP_NAME}`}</title>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1">

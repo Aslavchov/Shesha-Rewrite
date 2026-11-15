@@ -1,7 +1,7 @@
 import * as React from "react"
 import { CircleHelpIcon } from "lucide-react"
 
-import { resolveSettings } from "@/forms/runtime"
+import { resolveSettings, ThemeStylesContext } from "@/forms/runtime"
 
 import { AppearanceEditor } from "../appearance/appearance-editor"
 import { useDesigner, useDesignerContext } from "../context"
@@ -80,6 +80,8 @@ function InstanceProperties({ node, outline }: { node: OutlineNode; outline: Out
   const Icon = definition?.icon ?? CircleHelpIcon
   const problems = problemsOf(node)
   const epoch = useEpoch()
+  // What the theme sets for this kind of component: what an unset style inherits (spec 3.4).
+  const themeStyles = React.useContext(ThemeStylesContext)[instance.type]
 
   // The part pointed at belongs to this selection: let it go with it.
   React.useEffect(() => () => store.setHighlight(null), [store])
@@ -138,7 +140,12 @@ function InstanceProperties({ node, outline }: { node: OutlineNode; outline: Out
             <AppearanceEditor
               slots={definition.slots}
               styles={instance.styles}
-              defaults={{ label: "Default" }}
+              defaults={{
+                label: "From the theme",
+                styles: themeStyles,
+                fallbackLabel: "Default",
+                setLabel: "Set here",
+              }}
               onChange={(slot, property, value, run) =>
                 store.run({
                   type: "set-style",

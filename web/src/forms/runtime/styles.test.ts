@@ -9,6 +9,7 @@ import {
   resolveSlots,
   slotStyle,
   SPACE_STEPS,
+  withThemeStyles,
 } from "./styles"
 
 describe("slotStyle", () => {
@@ -126,5 +127,35 @@ describe("the scales match tokens.css", () => {
     for (const step of RADIUS_STEPS) expect(radius, step).toContain(step)
     for (const step of FONT_WEIGHTS) expect(weight, step).toContain(step)
     for (const step of SPACE_STEPS) expect(space, step).toContain(step)
+  })
+})
+
+describe("withThemeStyles (ADR 0010)", () => {
+  const slots = ["root", "label"] as const
+  const resolved = (stored?: Parameters<typeof resolveSlots>[2]) =>
+    resolveSlots(slots, "field", stored).slots
+
+  it("puts the theme's defaults under the instance's overrides, property by property", () => {
+    const merged = withThemeStyles(slots, resolved({ label: { color: "#000000" } }), {
+      label: { color: { token: "primary" }, fontWeight: "semibold" },
+    })
+    expect(merged.label.style).toEqual({
+      color: "#000000",
+      fontWeight: "var(--sys-font-weight-semibold)",
+    })
+  })
+
+  it("returns the same slots when the theme has nothing for them", () => {
+    const own = resolved()
+    expect(withThemeStyles(slots, own, undefined)).toBe(own)
+    expect(withThemeStyles(slots, own, { other: { color: "#000000" } })).toBe(own)
+  })
+
+  it("leaves out what the theme holds that is not valid", () => {
+    const merged = withThemeStyles(slots, resolved(), {
+      root: { color: "teal" } as never,
+    })
+    expect(merged.root.style).toBeUndefined()
+    expect(merged.root["data-testid"]).toBe("field-field")
   })
 })

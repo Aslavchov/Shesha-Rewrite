@@ -49,6 +49,14 @@ export const DESIGNER_PAGE: AppPage = {
 
 export const designerPath = (id: string) => `${DESIGNER_PAGE.path}/${encodeURIComponent(id)}`
 
+/** Built in Phase 4: the editor for the app's theme. */
+export const THEMES_PAGE: AppPage = {
+  id: "themes",
+  path: "/themes",
+  title: "Themes",
+  icon: PaletteIcon,
+}
+
 /* When each page arrives follows docs/roadmap.md; keep the two in step. */
 export const UPCOMING_PAGES: AppPage[] = [
   {
@@ -57,16 +65,6 @@ export const UPCOMING_PAGES: AppPage[] = [
     title: "Entities",
     icon: BoxesIcon,
     upcoming: { summary: "The data entities and properties that forms bind to.", arrives: 5 },
-  },
-  {
-    id: "themes",
-    path: "/themes",
-    title: "Themes",
-    icon: PaletteIcon,
-    upcoming: {
-      summary: "Themes that restyle the whole app by editing design tokens.",
-      arrives: 4,
-    },
   },
   {
     id: "settings",
@@ -78,7 +76,13 @@ export const UPCOMING_PAGES: AppPage[] = [
 ]
 
 /** Sidebar order. */
-export const NAV_PAGES: AppPage[] = [HOME_PAGE, FORMS_PAGE, DESIGNER_PAGE, ...UPCOMING_PAGES]
+export const NAV_PAGES: AppPage[] = [
+  HOME_PAGE,
+  FORMS_PAGE,
+  DESIGNER_PAGE,
+  THEMES_PAGE,
+  ...UPCOMING_PAGES,
+]
 
 /** The closing sentence of an empty state: when the page arrives. */
 export function arrivalText(arrives: number | "after-v1"): string {

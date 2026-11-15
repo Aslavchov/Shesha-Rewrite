@@ -9,8 +9,9 @@
 @import "./tokens.css";
 @import "./theme.css";
 
-/* Dark mode is a `dark` class on <html>. */
-@custom-variant dark (&:is(.dark *));
+/* Dark mode is a `dark` class on <html>. A theme scope (ADR 0010) chooses its
+   own scheme, whatever the page around it uses. */
+@custom-variant dark (&:is(.dark *, [data-theme-scope="dark"] *):not(:where([data-theme-scope="light"], [data-theme-scope="light"] *)));
 
 @layer base {
   * {

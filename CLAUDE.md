@@ -6,11 +6,13 @@ This repository is the v1 prototype, built in phases. Each phase has a spec
 in docs/specs/ and a report in docs/reports/.
 
 ## Start of every session
+
 1. Read this file.
 2. Read the current phase spec in docs/specs/.
 3. Read the previous phase report in docs/reports/.
 
 ## Scope
+
 - Build only what the current phase spec lists.
 - Ideas beyond scope go under "Deferred" in the phase report, not into code.
 - Contracts frozen by an earlier phase change only through a new ADR in docs/adr/.
@@ -18,6 +20,7 @@ in docs/specs/ and a report in docs/reports/.
   model can continue from it.
 
 ## Architecture
+
 - Frontend: web/ (React, TypeScript strict, Vite).
 - Server: crates/server (Rust, Axum). Shared types: crates/contracts.
 - TypeScript types for anything crossing the API come from crates/contracts.
@@ -27,6 +30,7 @@ in docs/specs/ and a report in docs/reports/.
 - The server binds to 127.0.0.1 unless told otherwise.
 
 ## Forms
+
 - A form is a JSON document: ADR 0003. Its structure lives in crates/contracts;
   what goes inside `settings` lives with each component.
 - web/src/forms/runtime is the component contract, the form store and the
@@ -44,6 +48,7 @@ in docs/specs/ and a report in docs/reports/.
   forms API and the error shape's `details`.
 
 ## Designer
+
 - web/src/designer is the form designer: ADR 0008.
 - web/src/designer/model is pure: no React, no DOM. Every change to a document
   is one of three operations (insert, move, remove) applied through
@@ -60,6 +65,7 @@ in docs/specs/ and a report in docs/reports/.
   inputs bound to their name), and autosave with revision conflict handling.
 
 ## Properties and styles
+
 - web/src/designer/properties is the properties panel: ADR 0009. It is
   generated from definitions, one editor per setting kind; no file there names
   a component type. A setting that is invalid only together with another needs
@@ -72,7 +78,22 @@ in docs/specs/ and a report in docs/reports/.
   generated from definitions, the Appearance editor's props, and Tabs regions
   keyed by stable keys.
 
+## Themes
+
+- web/src/theme is the theme: ADR 0010. variables.ts is the only place a
+  theme's values become CSS: `--theme-*` properties that tokens.css reads, on
+  <html> for the published theme or on a `data-theme-scope` element for a
+  preview. Component defaults merge under an instance's own styles in the
+  runtime hosts (definition ← theme ← instance).
+- The published theme is written into index.html by the server and applied
+  before first paint by an inline script built from src/theme/boot.ts. Keep
+  the `published-theme` marker in index.html on one line.
+- Frozen by Phase 4 (ADR 0010): the theme document format, the merge order
+  and how inherited values and their source are shown, the draft and
+  publish model and the theme API.
+
 ## Styling
+
 - web/src/styles/tokens.css is the single source of design values.
 - Components use tokens only: no raw colours, sizes or shadows in components.
 - No !important and no Tailwind important modifier, anywhere. CI enforces this.
@@ -83,6 +104,7 @@ in docs/specs/ and a report in docs/reports/.
   from Ant Design or the current Shesha's look.
 
 ## Fresh eyes
+
 - Shesha 2.0 keeps Shesha's concepts (designer, components, properties, themes,
   entities, scripting, form API) and reinvents how they are built and how they
   look.
@@ -93,6 +115,7 @@ in docs/specs/ and a report in docs/reports/.
   Much of the old implementation is technical debt, so the bar is high.
 
 ## Testing
+
 - Every interactive or checked element has a data-testid in kebab-case,
   area-element.
 - Every user-visible behaviour in a phase spec gets an end-to-end test.
@@ -102,6 +125,7 @@ in docs/specs/ and a report in docs/reports/.
   the server refuse a request on purpose calls `expectRefusal(status)`.
 
 ## Working in a session
+
 - Run every check in the session before pushing: typecheck, lint, unit tests,
   Rust tests, the style guard, the Linux build and the end-to-end suite.
 - Push once, when the phase is complete and every check passes. Then open the
@@ -113,11 +137,13 @@ in docs/specs/ and a report in docs/reports/.
   by hand from the Actions tab.
 
 ## Quality
+
 - Zero console errors or warnings.
 - Keyboard accessible, with a visible focus ring everywhere.
 - Prefer clear, small modules over clever abstractions.
 
 ## Commands
+
 Run these from the repository root. They need Node (see .node-version) and
 Rust (rust-toolchain.toml installs the right version by itself).
 

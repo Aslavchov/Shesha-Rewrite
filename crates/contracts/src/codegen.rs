@@ -13,8 +13,9 @@ use ts_rs::{Config, TS};
 use crate::forms::SettingsTs;
 use crate::{
     ApiError, ApiErrorBody, AppInfo, ColorToken, ColorValue, ComponentInstance, CreateFormRequest,
-    DbStatus, ErrorDetail, FontWeight, FormDocument, FormList, FormRecord, FormSummary,
-    HealthResponse, HealthStatus, Radius, SlotStyle, Space, UpdateFormRequest,
+    DbStatus, Density, ErrorDetail, FontWeight, FormDocument, FormList, FormRecord, FormSummary,
+    HealthResponse, HealthStatus, Radius, SaveThemeDraftRequest, SlotStyle, Space, ThemeColor,
+    ThemeColors, ThemeDocument, ThemeRecord, ThemeRevisionRequest, ThemeState, UpdateFormRequest,
 };
 
 /// The one command that regenerates the files. Named in every file header.
@@ -46,6 +47,7 @@ pub fn render() -> Files {
     add_type::<ComponentInstance>(&cfg, &mut types);
     add_type::<CreateFormRequest>(&cfg, &mut types);
     add_type::<DbStatus>(&cfg, &mut types);
+    add_type::<Density>(&cfg, &mut types);
     add_type::<ErrorDetail>(&cfg, &mut types);
     add_type::<FontWeight>(&cfg, &mut types);
     add_type::<FormDocument>(&cfg, &mut types);
@@ -55,9 +57,16 @@ pub fn render() -> Files {
     add_type::<HealthResponse>(&cfg, &mut types);
     add_type::<HealthStatus>(&cfg, &mut types);
     add_type::<Radius>(&cfg, &mut types);
+    add_type::<SaveThemeDraftRequest>(&cfg, &mut types);
     add_type::<SettingsTs>(&cfg, &mut types);
     add_type::<SlotStyle>(&cfg, &mut types);
     add_type::<Space>(&cfg, &mut types);
+    add_type::<ThemeColor>(&cfg, &mut types);
+    add_type::<ThemeColors>(&cfg, &mut types);
+    add_type::<ThemeDocument>(&cfg, &mut types);
+    add_type::<ThemeRecord>(&cfg, &mut types);
+    add_type::<ThemeRevisionRequest>(&cfg, &mut types);
+    add_type::<ThemeState>(&cfg, &mut types);
     add_type::<UpdateFormRequest>(&cfg, &mut types);
 
     let mut barrel = header();
@@ -65,6 +74,10 @@ pub fn render() -> Files {
     barrel.push_str(
         "export { FORM_FORMAT_VERSION, MAX_JSON_DEPTH, MAX_REQUEST_BYTES } from \"./form\";\n",
     );
+    barrel.push_str(&format!(
+        "export {{ {} }} from \"./theme\";\n",
+        THEME_CONSTANTS.join(", ")
+    ));
     for name in types.keys() {
         barrel.push_str(&format!("export type {{ {name} }} from \"./{name}\";\n"));
     }
@@ -93,6 +106,7 @@ pub fn render() -> Files {
             crate::MAX_REQUEST_BYTES
         ),
     );
+    files.insert(format!("theme.{EXTENSION}"), theme_constants());
     files.insert(format!("index.{EXTENSION}"), barrel);
     files
 }
@@ -150,6 +164,46 @@ fn existing(dir: &Path) -> io::Result<Vec<String>> {
     }
     names.sort();
     Ok(names)
+}
+
+/// The names `theme.ts` exports, in the order the barrel lists them.
+const THEME_CONSTANTS: [&str; 8] = [
+    "THEME_COLOR_ROLES",
+    "THEME_FORMAT_VERSION",
+    "THEME_MAX_COMPONENTS",
+    "THEME_MAX_SLOTS",
+    "THEME_RADIUS_MAX",
+    "THEME_RADIUS_MIN",
+    "THEME_TEXT_SIZE_MAX",
+    "THEME_TEXT_SIZE_MIN",
+];
+
+/// `theme.ts`: the theme's version, ranges, limits and colour roles.
+fn theme_constants() -> String {
+    let numbers = [
+        crate::THEME_FORMAT_VERSION,
+        crate::THEME_MAX_COMPONENTS,
+        crate::THEME_MAX_SLOTS,
+        crate::THEME_RADIUS_MAX,
+        crate::THEME_RADIUS_MIN,
+        crate::THEME_TEXT_SIZE_MAX,
+        crate::THEME_TEXT_SIZE_MIN,
+    ];
+    let roles: Vec<String> = crate::THEME_COLOR_ROLES
+        .iter()
+        .map(|role| format!("{role:?}"))
+        .collect();
+
+    let mut contents = header();
+    contents.push_str(&format!(
+        "export const {} = [{}] as const;\n",
+        THEME_CONSTANTS[0],
+        roles.join(", ")
+    ));
+    for (name, value) in THEME_CONSTANTS[1..].iter().zip(numbers) {
+        contents.push_str(&format!("export const {name} = {value};\n"));
+    }
+    contents
 }
 
 fn header() -> String {

@@ -20,6 +20,7 @@ export function PropertyRow({
   resetLabel,
   onReset,
   defaultText = "Default",
+  source,
   inline = false,
   children,
 }: {
@@ -36,6 +37,13 @@ export function PropertyRow({
   onReset?: () => void
   /** What "not set" is called, such as "Default" or "From the theme". */
   defaultText?: string
+  /**
+   * Where the value comes from, in words: "Set here", "From the theme",
+   * "Default" (Phase 4, ADR 0010). Shown beside the label, set or not, with
+   * the id `<id>-source` for the editor to be described by. It replaces
+   * `defaultText` and the words hidden in the label.
+   */
+  source?: { text: string; testId?: string }
   /** The editor sits beside the label (a switch) rather than under it. */
   inline?: boolean
   children: React.ReactNode
@@ -54,12 +62,20 @@ export function PropertyRow({
           <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-primary" />
         ) : null}
         <span className="truncate">{label}</span>
-        {isSet === undefined ? null : (
+        {isSet === undefined || source ? null : (
           <span className="sr-only">{isSet ? ", set" : ", default"}</span>
         )}
       </label>
       <span className="ml-auto flex shrink-0 items-center gap-1">
-        {isSet === false ? (
+        {source ? (
+          <span
+            id={`${id}-source`}
+            data-testid={source.testId}
+            className="text-xs text-muted-foreground"
+          >
+            {source.text}
+          </span>
+        ) : isSet === false ? (
           <span aria-hidden="true" className="text-xs text-muted-foreground">
             {defaultText}
           </span>

@@ -13,6 +13,7 @@ use axum::{Json, Router};
 use contracts::{FormDocument, FormList};
 use serde_json::{Map, Value, json};
 
+use crate::api::{based_on_revision, request_object};
 use crate::error::AppError;
 use crate::router::AppState;
 use store::{StoredForm, UpdateOutcome};
@@ -55,15 +56,7 @@ async fn update(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<Value>, AppError> {
     let mut body = request_object(body)?;
-    let based_on = body
-        .get("revision")
-        .and_then(Value::as_u64)
-        .and_then(|revision| u32::try_from(revision).ok())
-        .ok_or_else(|| {
-            AppError::invalid_request(
-                "The request needs \"revision\": the revision number this change was based on.",
-            )
-        })?;
+    let based_on = based_on_revision(&body)?;
     let (form, document) = document_of(&mut body)?;
 
     match store::update(&state.pool, &id, based_on, &form, &document).await? {
@@ -83,22 +76,6 @@ async fn remove(
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(AppError::FormNotFound { id })
-    }
-}
-
-/// The request body as a JSON object. The body is read by hand, rather than
-/// with axum's `Json` extractor, so that every failure uses the standard
-/// error shape and a wrong `Content-Type` is not held against the caller.
-fn request_object(body: Result<Bytes, BytesRejection>) -> Result<Map<String, Value>, AppError> {
-    let body = body.map_err(|_| AppError::PayloadTooLarge)?;
-    match serde_json::from_slice(&body) {
-        Ok(Value::Object(object)) => Ok(object),
-        Ok(_) => Err(AppError::invalid_request(
-            "The request body must be a JSON object.",
-        )),
-        Err(error) => Err(AppError::invalid_request(format!(
-            "The request body is not valid JSON: {error}."
-        ))),
     }
 }
 

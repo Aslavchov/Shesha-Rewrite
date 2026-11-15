@@ -214,24 +214,47 @@ impl Checker {
     }
 
     fn style(&mut self, path: &str, style: &SlotStyle) {
-        let colours = [
-            ("color", &style.color),
-            ("background", &style.background),
-            ("borderColor", &style.border_color),
-        ];
-        for (property, value) in colours {
-            let problem = match value {
-                Some(ColorValue::Literal(literal)) if !is_hex_colour(literal) => format!(
-                    "{literal:?} is not a colour. Write #RRGGBB or #RRGGBBAA, or refer to a token: {{ \"token\": \"primary\" }}."
-                ),
-                Some(ColorValue::Token(reference)) if !is_token_name(&reference.token) => format!(
-                    "{:?} is not a valid token name. Use lowercase letters, digits and hyphens.",
-                    reference.token
-                ),
-                _ => continue,
+        style_problems(path, style, &mut self.problems);
+    }
+}
+
+/// Checks one slot style given as JSON, as a theme holds it: its shape
+/// first, then its values. `path` is the path to the slot.
+pub fn slot_style_problems(path: &str, style: &Value, problems: &mut Vec<ErrorDetail>) {
+    match serde_path_to_error::deserialize::<_, SlotStyle>(style) {
+        Ok(style) => style_problems(path, &style, problems),
+        Err(error) => {
+            let inside = error.path().to_string();
+            let path = if inside == "." {
+                path.to_owned()
+            } else {
+                format!("{path}.{inside}")
             };
-            self.problem(format!("{path}.{property}"), problem);
+            problems.push(ErrorDetail::new(path, sentence(&error.inner().to_string())));
         }
+    }
+}
+
+/// Checks the values of one slot style. The same rules hold wherever a slot
+/// style is stored: on an instance in a form, and in the theme.
+fn style_problems(path: &str, style: &SlotStyle, problems: &mut Vec<ErrorDetail>) {
+    let colours = [
+        ("color", &style.color),
+        ("background", &style.background),
+        ("borderColor", &style.border_color),
+    ];
+    for (property, value) in colours {
+        let problem = match value {
+            Some(ColorValue::Literal(literal)) if !is_hex_colour(literal) => format!(
+                "{literal:?} is not a colour. Write #RRGGBB or #RRGGBBAA, or refer to a token: {{ \"token\": \"primary\" }}."
+            ),
+            Some(ColorValue::Token(reference)) if !is_token_name(&reference.token) => format!(
+                "{:?} is not a valid token name. Use lowercase letters, digits and hyphens.",
+                reference.token
+            ),
+            _ => continue,
+        };
+        problems.push(ErrorDetail::new(format!("{path}.{property}"), problem));
     }
 }
 

@@ -25,6 +25,12 @@ export type RegionLayout = {
   readonly axis: Axis
   /** The drop target the region shows while it holds nothing. */
   readonly empty: Box | null
+  /**
+   * Inside the region's padding: where its edge is drawn from, so that the
+   * edge stays inside a container that pads its content (a Card, Phase 4).
+   * The same as `box` when the region has no padding, or in tests.
+   */
+  readonly inner?: Box
 }
 
 /** The boxes of one rendered form, all in the same coordinates. */

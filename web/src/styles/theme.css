@@ -5,8 +5,10 @@
  * switch under `.dark`, and everything below follows.
  */
 
-/* shadcn/ui variables → system tokens */
-:root {
+/* shadcn/ui variables → system tokens. Declared again on a theme scope, so
+   that they follow the system tokens set there (ADR 0010). */
+:root,
+[data-theme-scope] {
   --background: var(--sys-color-background);
   --foreground: var(--sys-color-foreground);
   --card: var(--sys-color-surface);
@@ -173,4 +175,5 @@
   --spacing-designer-toolbox: var(--sys-size-designer-toolbox);
   --spacing-designer-panel: var(--sys-size-designer-panel);
   --container-content: var(--sys-size-content);
+  --container-content-wide: var(--sys-size-content-wide);
 }
