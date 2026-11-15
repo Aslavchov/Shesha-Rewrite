@@ -118,7 +118,7 @@ Changes to earlier phases' code, beyond adding to it:
 - A history of published themes, to go back to one.
 - Contrast warnings for colours on the sidebar's current item and for component defaults. Today the warnings cover the roles and the page's and sidebar's text.
 - The theme's own colours as tokens a document may name: a form may already use `primary`, `success` and the rest, which follow the theme.
-- Still open from earlier phases: touch dragging, deleting forms from the UI, a designer layout for narrow windows, retrying a failed save by itself, locale-aware formats, an automated guard for raw values in components, a Card that has nothing to show in read-only mode, and splitting the JavaScript bundle (now 872 kB, 275 kB gzipped).
+- Still open from earlier phases: touch dragging, deleting forms from the UI, a designer layout for narrow windows, retrying a failed save by itself, locale-aware formats, an automated guard for raw values in components, a Card that has nothing to show in read-only mode, and splitting the JavaScript bundle (now 889 kB, 281 kB gzipped).
 
 ## Blockers
 
