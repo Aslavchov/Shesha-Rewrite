@@ -28,12 +28,6 @@ export function PropertiesPanel() {
   const outline = store.schema.outline(document)
   const node = selection === null ? undefined : outline.byId.get(selection)
 
-  // Another selection starts at the top, where its problems are.
-  const bodyRef = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = 0
-  }, [selection])
-
   return (
     <section
       aria-labelledby="designer-properties-title"
@@ -42,7 +36,8 @@ export function PropertiesPanel() {
     >
       <PanelTitle id="designer-properties-title">Properties</PanelTitle>
       <div
-        ref={bodyRef}
+        // A new element for another selection: it starts at the top, where its problems are.
+        key={selection ?? "form"}
         data-testid="designer-properties-body"
         // Positioned, so that what is hidden for the eye inside it scrolls with it.
         className="relative min-h-0 flex-1 overflow-y-auto pb-4 -outline-offset-2"

@@ -59,6 +59,19 @@ in docs/specs/ and a report in docs/reports/.
   model, the naming rule for new instances (`<type in camelCase><number>`,
   inputs bound to their name), and autosave with revision conflict handling.
 
+## Properties and styles
+- web/src/designer/properties is the properties panel: ADR 0009. It is
+  generated from definitions, one editor per setting kind; no file there names
+  a component type. A setting that is invalid only together with another needs
+  a constraint on the definition, not a check in the panel.
+- web/src/designer/appearance is the Appearance editor. It takes slots,
+  current values and where defaults come from, and knows nothing of the
+  designer, so the Phase 4 theme editor reuses it.
+- Frozen by Phase 3 (ADR 0009): the edit operations beside insert, move and
+  remove, how a run of edits merges into one undo step, the panel being
+  generated from definitions, the Appearance editor's props, and Tabs regions
+  keyed by stable keys.
+
 ## Styling
 - web/src/styles/tokens.css is the single source of design values.
 - Components use tokens only: no raw colours, sizes or shadows in components.
