@@ -14,10 +14,20 @@ import {
 import type { FormDocument } from "@/generated"
 
 import { type Box, type CanvasLayout, EMPTY_LAYOUT, locateOnCanvas, shift } from "./canvas-geometry"
-import { EMPTY_ATTRIBUTE, ITEM_ATTRIBUTE, measureCanvas, sameLayout } from "./canvas-measure"
+import {
+  EMPTY_ATTRIBUTE,
+  ITEM_ATTRIBUTE,
+  measureCanvas,
+  measureSlot,
+  measureSwitches,
+  type RegionSwitch,
+  sameBoxes,
+  sameLayout,
+  sameSwitches,
+} from "./canvas-measure"
 import { useDesigner, useDesignerContext, useDrag } from "./context"
 import { SCROLL_AREA_ATTRIBUTE } from "./drag/controller"
-import type { OutlineNode } from "./model/schema"
+import type { Outline, OutlineNode } from "./model/schema"
 import { ROOT_REGION } from "./model/tree"
 
 /**
@@ -114,8 +124,10 @@ function RegionSlot({ parent, name, isEmpty, children }: DesignRegionProps) {
   )
 }
 
-/** One object for the life of the app, so the renderer's instances stay memoised. */
-const SURFACE: DesignSurface = { Instance: InstanceMarker, Region: RegionSlot }
+/** What the canvas draws over the form besides the instances: tabs to switch, and a part pointed at. */
+type Extras = { readonly switches: readonly RegionSwitch[]; readonly highlight: readonly Box[] }
+
+const NO_EXTRAS: Extras = { switches: [], highlight: [] }
 
 // --- The canvas in design mode -----------------------------------------------------
 
@@ -124,23 +136,58 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
   const outline = store.schema.outline(form)
   const selection = useDesigner((snapshot) => snapshot.editor.selection)
   const focus = useDesigner((snapshot) => snapshot.focus)
+  const shownRegions = useDesigner((snapshot) => snapshot.shownRegions)
+  const highlight = useDesigner((snapshot) => snapshot.highlight)
+
+  // A new surface only when the shown regions change: the renderer's
+  // instances stay memoised in between.
+  const surface = React.useMemo<DesignSurface>(
+    () => ({
+      Instance: InstanceMarker,
+      Region: RegionSlot,
+      shownRegion: (id) => shownRegions.get(id) ?? null,
+    }),
+    [shownRegions],
+  )
 
   const paneRef = React.useRef<HTMLElement>(null)
   /** The element the form's boxes are measured from, and the overlay is placed in. */
   const originRef = React.useRef<HTMLDivElement>(null)
   const [layout, setLayout] = React.useState<CanvasLayout>(EMPTY_LAYOUT)
   const layoutRef = React.useRef(layout)
+  const [extras, setExtras] = React.useState<Extras>(NO_EXTRAS)
+  const extrasRef = React.useRef(extras)
+  const highlightRef = React.useRef(highlight)
 
   const measure = React.useCallback(() => {
-    if (!originRef.current) return
-    const measured = measureCanvas(originRef.current, originRef.current)
-    if (sameLayout(layoutRef.current, measured)) return
-    layoutRef.current = measured
-    setLayout(measured)
+    const origin = originRef.current
+    if (!origin) return
+    const measured = measureCanvas(origin, origin)
+    if (!sameLayout(layoutRef.current, measured)) {
+      layoutRef.current = measured
+      setLayout(measured)
+    }
+    const pointed = highlightRef.current
+    const next: Extras = {
+      switches: measureSwitches(origin, origin),
+      highlight: pointed ? measureSlot(origin, origin, pointed.id, pointed.slot) : [],
+    }
+    const current = extrasRef.current
+    if (
+      sameSwitches(current.switches, next.switches) &&
+      sameBoxes(current.highlight, next.highlight)
+    ) {
+      return
+    }
+    extrasRef.current = next
+    setExtras(next)
   }, [])
 
   // After every render: nothing else can say when the form's layout changed,
   // and measuring it is cheap. The boxes are in place before the browser paints.
+  React.useLayoutEffect(() => {
+    highlightRef.current = highlight
+  })
   React.useLayoutEffect(measure)
 
   // And when the form changes size without a render: a resize, a font arriving.
@@ -223,7 +270,9 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
       className="relative min-h-0 flex-1 overflow-y-auto bg-muted/40 p-6 -outline-offset-2"
       onPointerDown={(event) => {
         if (event.button !== 0) return
-        if (!(event.target as Element).closest("[data-canvas-item]")) store.select(null)
+        if (!(event.target as Element).closest("[data-canvas-item], [data-canvas-switch]")) {
+          store.select(null)
+        }
       }}
       onFocus={() => store.noteSurface("canvas")}
     >
@@ -235,7 +284,7 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
               document={form}
               registry={store.schema.registry}
               mode="edit"
-              design={SURFACE}
+              design={surface}
             />
           </CardContent>
         </Card>
@@ -249,6 +298,33 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
               isTabStop={node === tabStop}
               shown={shown}
             />
+          ))}
+          {extras.switches.map((region) => (
+            <RegionSwitchProxy
+              key={`${region.owner}/${region.region}`}
+              region={region}
+              outline={outline}
+            />
+          ))}
+          {extras.highlight.map((box, index) => (
+            <div
+              // The boxes of one part have no identity but their order.
+              // oxlint-disable-next-line react/no-array-index-key
+              key={index}
+              data-testid="canvas-slot-highlight"
+              style={boxStyle(box)}
+              className={cn(
+                BOXED,
+                "rounded-xs outline-2 outline-offset-2 outline-primary outline-dashed",
+              )}
+            >
+              {index === 0 && highlight ? (
+                // At the end, where a label never is.
+                <span className="absolute right-0 bottom-full mb-1 rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground">
+                  {highlight.slot}
+                </span>
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
@@ -277,7 +353,7 @@ const boxStyle = (box: Box): BoxStyle => ({
 const BOXED = "absolute top-(--box-top) left-(--box-left) h-(--box-height) w-(--box-width)"
 
 /** How far outside a region its edge is drawn, so that it does not sit on its instances. */
-const EDGE_OUTSET = 3
+const EDGE_OUTSET = 5
 
 /** The edges of containers and columns, so it is plain where things will land (spec 3.3). */
 function RegionEdges({ layout }: { layout: CanvasLayout }) {
@@ -346,8 +422,7 @@ function InstanceProxy({
       style={boxStyle(box)}
       className={cn(
         BOXED,
-        "pointer-events-auto cursor-default rounded-sm ring-primary/50 hover:ring-1",
-        isSelected && "ring-2 ring-primary hover:ring-2",
+        "group/proxy pointer-events-auto cursor-default rounded-sm",
         isDragged && "bg-background/70",
       )}
       onPointerDown={(event) => {
@@ -375,16 +450,59 @@ function InstanceProxy({
         go(target)
       }}
     >
+      {/* The outline, a little outside the instance, so its content never touches it. */}
+      <span
+        aria-hidden="true"
+        data-slot="canvas-outline"
+        className={cn(
+          "pointer-events-none absolute -inset-1 rounded-md ring-primary/50 group-hover/proxy:ring-1",
+          isSelected && "ring-2 ring-primary group-hover/proxy:ring-2",
+        )}
+      />
       {isSelected ? (
         <span
           aria-hidden="true"
           // A tab on the top edge, at the end where a label never is: it
           // names the selection without covering what is above or inside it.
-          className="absolute top-0 right-2 max-w-full -translate-y-1/2 truncate rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground"
+          className="absolute -top-1 right-2 max-w-full -translate-y-1/2 truncate rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground"
         >
           {name}
         </span>
       ) : null}
     </button>
+  )
+}
+
+/**
+ * A box over a tab of a container on the canvas. Pressing it selects the
+ * container and shows that tab, whose region then takes drops (spec 4). The
+ * keyboard reaches the same through the properties panel and the outline.
+ */
+function RegionSwitchProxy({ region, outline }: { region: RegionSwitch; outline: Outline }) {
+  const { store } = useDesignerContext()
+  const node = outline.byId.get(region.owner)
+  const isShown = useDesigner(
+    (snapshot) => snapshot.shownRegions.get(region.owner) === region.region,
+  )
+  if (!node) return null
+  const label = node.regions.find((candidate) => candidate.name === region.region)?.label
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-label={`Show ${label ?? region.region} of ${node.instance.name}`}
+      aria-pressed={isShown}
+      data-testid={`canvas-switch-${node.instance.name}-${region.region}`}
+      data-canvas-switch={region.region}
+      style={boxStyle(region.box)}
+      className={cn(BOXED, "pointer-events-auto cursor-pointer rounded-md hover:bg-primary/10")}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return
+        // Not a drag: a press here only chooses the tab.
+        event.preventDefault()
+        store.select(region.owner)
+        store.showRegion(region.owner, region.region)
+      }}
+    />
   )
 }

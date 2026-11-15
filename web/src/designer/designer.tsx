@@ -19,7 +19,7 @@ import { DragLayer } from "./drag/drag-layer"
 import type { Command } from "./model/editor"
 import { createSchema } from "./model/schema"
 import { OutlinePanel } from "./outline-panel"
-import { PropertiesPanel } from "./properties-panel"
+import { PropertiesPanel } from "./properties/properties-panel"
 import { Autosave, type SendSave } from "./save"
 import { matchShortcut } from "./shortcuts"
 import { DesignerStore, type Surface } from "./store"
@@ -121,7 +121,6 @@ export function Designer({
   return (
     <DesignerContext value={context}>
       <Workspace
-        name={record.document.name}
         mainId={mainId}
         back={back}
         actions={actions}
@@ -148,14 +147,16 @@ const isEditable = (element: Element) =>
   element.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') !==
   null
 
+/** Whether an element is inside the properties panel, where typing edits the form. */
+const inPanel = (element: Element) =>
+  element.closest('[data-testid="designer-properties"]') !== null
+
 function Workspace({
-  name,
   mainId,
   back,
   actions,
   onReload,
 }: {
-  name: string
   mainId: string
   back: DesignerProps["back"]
   actions: React.ReactNode
@@ -163,6 +164,8 @@ function Workspace({
 }) {
   const { store, drag } = useDesignerContext()
   const mode = useDesigner((snapshot) => snapshot.mode)
+  // The form's name as it is now: renaming it in the panel renames the page.
+  const name = useDesigner((snapshot) => snapshot.editor.document.name)
   const status = useSaveStatus()
   const isConflict = status.kind === "conflict"
   const isLocked = mode === "preview" || isConflict
@@ -201,11 +204,18 @@ function Workspace({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : document.body
       if (event.defaultPrevented || drag.getState()) return
-      // Typing in a field, or a key meant for an open popup, is not a shortcut.
-      if (isEditable(target) || target.closest('[role="dialog"]')) return
-
+      if (target.closest('[role="dialog"]')) return
       const shortcut = matchShortcut(event)
       if (shortcut === null) return
+      // Typing in a field is not a shortcut, with one exception: in the
+      // properties panel, undo and redo undo the edits made there, a run of
+      // typing at a time (ADR 0009), rather than the field's own keystrokes.
+      if (
+        isEditable(target) &&
+        !(inPanel(target) && (shortcut === "undo" || shortcut === "redo"))
+      ) {
+        return
+      }
       const { selection } = store.getSnapshot().editor
       // Delete acts only from where the selection is shown, never from a
       // button that happens to have focus.
@@ -285,7 +295,7 @@ function Workspace({
         </div>
         <aside
           inert={isLocked}
-          className="flex shrink-0 flex-col border-t bg-sidebar transition-opacity lg:w-designer-panel lg:border-t-0 lg:border-l inert:opacity-50"
+          className="flex shrink-0 flex-col border-t bg-sidebar transition-opacity lg:w-designer-panel lg:overflow-hidden lg:border-t-0 lg:border-l inert:opacity-50"
         >
           <OutlinePanel />
           <PropertiesPanel />
@@ -302,8 +312,11 @@ function Workspace({
 function Announcer() {
   const announcement = useDesigner((snapshot) => snapshot.announcement)
   return (
-    // <output> is a live region: what is put in it is announced.
-    <output data-testid="designer-live" className="sr-only">
+    // A status live region: what is put in it is announced, politely. The
+    // role is <output>'s own, and stated as well: not every screen reader
+    // treats <output> as live without it (Phase 3, section 5).
+    // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+    <output role="status" data-testid="designer-live" className="sr-only">
       {/* A new element each time, so that the same words said twice are announced twice. */}
       <span key={announcement.count}>{announcement.text}</span>
     </output>

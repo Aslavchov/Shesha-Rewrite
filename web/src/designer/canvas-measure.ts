@@ -6,6 +6,8 @@ import {
   type RegionLayout,
   sameBox,
 } from "./canvas-geometry"
+import { REGION_SWITCH_ATTRIBUTE, SLOT_ATTRIBUTE } from "@/forms/runtime"
+
 import { ROOT_REGION } from "./model/tree"
 
 /**
@@ -108,3 +110,51 @@ export function sameLayout(a: CanvasLayout, b: CanvasLayout): boolean {
   }
   return true
 }
+
+/** An element that switches a container to one of its regions: a tab. */
+export type RegionSwitch = { readonly owner: string; readonly region: string; readonly box: Box }
+
+/** The instance an element belongs to: the innermost instance around it. */
+const ownerOf = (element: Element) =>
+  element.closest(`[${ITEM_ATTRIBUTE}]`)?.getAttribute(ITEM_ATTRIBUTE) ?? null
+
+/**
+ * The region switches drawn in the form (Tabs' tabs), each with the
+ * container it belongs to. Ones that draw nothing are left out.
+ */
+export function measureSwitches(form: Element, origin: Element): RegionSwitch[] {
+  const from = origin.getBoundingClientRect()
+  const switches: RegionSwitch[] = []
+  for (const element of form.querySelectorAll(`[${REGION_SWITCH_ATTRIBUTE}]`)) {
+    const owner = ownerOf(element)
+    const box = boxOf(element, from)
+    if (owner && box) {
+      switches.push({ owner, region: element.getAttribute(REGION_SWITCH_ATTRIBUTE) ?? "", box })
+    }
+  }
+  return switches
+}
+
+/** The boxes of one slot of one instance: one per element that is that part, drawn now. */
+export function measureSlot(form: Element, origin: Element, id: string, slot: string): Box[] {
+  const from = origin.getBoundingClientRect()
+  const boxes: Box[] = []
+  for (const element of form.querySelectorAll(`[${SLOT_ATTRIBUTE}="${slot}"]`)) {
+    if (ownerOf(element) !== id) continue
+    const box = boxOf(element, from)
+    if (box) boxes.push(box)
+  }
+  return boxes
+}
+
+export const sameBoxes = (a: readonly Box[], b: readonly Box[]) =>
+  a.length === b.length && a.every((box, index) => sameBox(box, b[index]))
+
+export const sameSwitches = (a: readonly RegionSwitch[], b: readonly RegionSwitch[]) =>
+  a.length === b.length &&
+  a.every(
+    (one, index) =>
+      one.owner === b[index].owner &&
+      one.region === b[index].region &&
+      sameBox(one.box, b[index].box),
+  )

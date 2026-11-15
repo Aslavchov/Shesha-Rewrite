@@ -75,7 +75,7 @@ export type Command =
       readonly key: string
       readonly value: unknown
     }>
-  | { readonly type: "reset-setting"; readonly id: string | null; readonly key: string }
+  | Merged<{ readonly type: "reset-setting"; readonly id: string | null; readonly key: string }>
   /** One style property of one slot. `undefined` removes the override. */
   | Merged<{
       readonly type: "set-style"
@@ -120,6 +120,16 @@ const REFUSALS: Record<Refusal, string> = {
   "invalid-description": "That description is too long.",
   "not-bound": "This component has no data path.",
 }
+
+/** The style properties, in the order they are shown. */
+export const STYLE_PROPERTIES: readonly StyleProperty[] = [
+  "color",
+  "background",
+  "borderColor",
+  "radius",
+  "fontWeight",
+  "padding",
+]
 
 /** What a style property is called in words. */
 export const STYLE_PROPERTY_LABELS: Record<StyleProperty, string> = {
@@ -370,6 +380,7 @@ export function runCommand(
         { type: "reset-setting", id: command.id, key: command.key },
         `Reset ${label.toLowerCase()} of ${found.name}`,
         `${label} of ${found.name} is back to its default.`,
+        command.merge,
       )
     }
 

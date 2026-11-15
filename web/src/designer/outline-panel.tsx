@@ -1,9 +1,10 @@
 import * as React from "react"
 import { cn } from "cn"
-import { CircleHelpIcon, EyeOffIcon } from "lucide-react"
+import { CircleHelpIcon, EyeOffIcon, TriangleAlertIcon } from "lucide-react"
 
 import { useDesigner, useDesignerContext, useDrag } from "./context"
 import { SCROLL_AREA_ATTRIBUTE } from "./drag/controller"
+import { problemsOf } from "./model/problems"
 import type { OutlineNode } from "./model/schema"
 import { outlineDropAt, type OutlineRow, outlineRows } from "./outline-rows"
 import { PanelTitle } from "./panel-title"
@@ -103,7 +104,10 @@ export function OutlinePanel() {
   const tabStop = instances.find((node) => node.instance.id === selection) ?? instances[0]
 
   return (
-    <section aria-labelledby="designer-outline-title" className="flex min-h-0 flex-1 flex-col">
+    <section
+      aria-labelledby="designer-outline-title"
+      className="flex min-h-24 shrink-0 basis-2/5 flex-col lg:min-h-0"
+    >
       <PanelTitle id="designer-outline-title">Outline</PanelTitle>
       <div
         ref={paneRef}
@@ -186,8 +190,14 @@ function InstanceRow({
   const isDragged = useDrag((state) => state?.source.kind === "existing" && state.source.id === id)
   const Icon = node.definition?.icon ?? CircleHelpIcon
   const typeName = node.definition?.displayName ?? `unknown component ${type}`
+  const problems = problemsOf(node).length
+  const problemText = problems === 1 ? "1 problem" : `${problems} problems`
   // A container with several regions says which one each child is in.
-  const where = node.parent && node.parent.regions.length > 1 ? `, in ${node.position.region}` : ""
+  const inRegion = node.parent?.regions.find((candidate) => candidate.name === node.position.region)
+  const where =
+    node.parent && node.parent.regions.length > 1
+      ? `, in ${inRegion?.label ?? node.position.region}`
+      : ""
 
   const go = (to: OutlineNode | null | undefined) => {
     if (!to) return
@@ -200,7 +210,7 @@ function InstanceRow({
       role="treeitem"
       aria-level={depth + 1}
       aria-selected={isSelected}
-      aria-label={`${name}, ${typeName}${where}${node.shown ? "" : ", hidden"}`}
+      aria-label={`${name}, ${typeName}${where}${node.shown ? "" : ", hidden"}${problems > 0 ? `, ${problemText}` : ""}`}
       data-row={index}
       data-outline-item={id}
       data-testid={`outline-${name}`}
@@ -246,6 +256,15 @@ function InstanceRow({
         className={cn("size-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")}
       />
       <span className="truncate">{name}</span>
+      {problems > 0 ? (
+        <span
+          data-testid={`outline-problem-${name}`}
+          title={problemText}
+          className={cn("flex shrink-0 items-center text-warning", node.shown && "ml-auto")}
+        >
+          <TriangleAlertIcon aria-hidden="true" className="size-3.5" />
+        </span>
+      ) : null}
       {node.shown ? null : <HiddenBadge />}
     </div>
   )
@@ -269,9 +288,12 @@ function RegionRow({
       data-testid={`outline-${parent.instance.name}-${region.name}`}
       data-hidden={region.shown ? undefined : "true"}
       style={indentStyle(depth)}
-      className="flex h-6 items-center gap-2 pr-2 pl-(--row-indent) font-mono text-xs text-muted-foreground select-none"
+      className={cn(
+        "flex h-6 items-center gap-2 pr-2 pl-(--row-indent) text-xs text-muted-foreground select-none",
+        region.label === region.name && "font-mono",
+      )}
     >
-      <span className="truncate">{region.name}</span>
+      <span className="truncate">{region.label}</span>
       {isStray ? <HiddenBadge /> : null}
     </div>
   )
