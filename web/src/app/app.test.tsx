@@ -78,7 +78,6 @@ describe("app shell", () => {
 
   it.each([
     ["entities", "Arrives in Phase 5."],
-    ["themes", "Arrives in Phase 4."],
     ["settings", "Arrives after v1."],
   ])("%s has an empty state saying what is coming and when: %s", (id, arrival) => {
     const page = UPCOMING_PAGES.find((candidate) => candidate.id === id)
@@ -99,14 +98,25 @@ describe("app shell", () => {
     expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument()
   })
 
+  it("/themes is a built page: the theme editor, not an upcoming one", async () => {
+    stubInfo(infoOk)
+    renderAt("/themes")
+
+    expect(UPCOMING_PAGES.map((page) => page.path)).not.toContain("/themes")
+    expect(screen.getByTestId("page-title")).toHaveTextContent("Themes")
+    expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument()
+    // The stub answers the theme with something that is not one: the page says it could not load.
+    expect(await screen.findByTestId("theme-error")).toBeInTheDocument()
+  })
+
   it("navigates when a sidebar item is clicked", async () => {
     stubInfo(infoOk)
     const router = renderAt("/")
 
-    await userEvent.click(screen.getByTestId("nav-themes"))
+    await userEvent.click(screen.getByTestId("nav-entities"))
 
-    expect(router.state.location.pathname).toBe("/themes")
-    expect(screen.getByTestId("page-title")).toHaveTextContent("Themes")
+    expect(router.state.location.pathname).toBe("/entities")
+    expect(screen.getByTestId("page-title")).toHaveTextContent("Entities")
   })
 
   it("shows Not Found for an unknown route, with a link back to Home", async () => {

@@ -53,6 +53,22 @@ function boxOf(element: Element, origin: DOMRect): Box | null {
   return union
 }
 
+/** A box less the element's padding. An element with no box of its own has none. */
+function inside(element: Element, box: Box): Box {
+  if (element.hasAttribute(ITEM_ATTRIBUTE)) return box
+  const style = getComputedStyle(element)
+  const left = Number.parseFloat(style.paddingLeft) || 0
+  const right = Number.parseFloat(style.paddingRight) || 0
+  const top = Number.parseFloat(style.paddingTop) || 0
+  const bottom = Number.parseFloat(style.paddingBottom) || 0
+  return {
+    left: box.left + left,
+    top: box.top + top,
+    width: Math.max(0, box.width - left - right),
+    height: Math.max(0, box.height - top - bottom),
+  }
+}
+
 function axisOf(element: Element): Axis {
   const style = getComputedStyle(element)
   return style.display.includes("flex") && style.flexDirection.startsWith("row")
@@ -72,7 +88,7 @@ export function measureCanvas(form: Element, origin: Element): CanvasLayout {
   function region(key: string, element: Element, empty: Box | null) {
     if (regions.has(key)) return
     const box = boxOf(element, from)
-    if (box) regions.set(key, { box, axis: axisOf(element), empty })
+    if (box) regions.set(key, { box, axis: axisOf(element), empty, inner: inside(element, box) })
   }
 
   for (const item of form.querySelectorAll(`[${ITEM_ATTRIBUTE}]`)) {

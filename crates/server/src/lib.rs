@@ -14,5 +14,6 @@ pub mod forms;
 pub mod router;
 pub mod serve;
 pub mod startup;
+pub mod themes;
 
 pub use router::{AppState, router};

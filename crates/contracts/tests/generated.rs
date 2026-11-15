@@ -73,3 +73,63 @@ fn the_request_limits_are_exported_from_the_rust_constants() {
         assert!(files["form.ts"].contains(&expected), "{expected}");
     }
 }
+
+#[test]
+fn the_theme_constants_are_exported_from_the_rust_constants() {
+    let files = codegen::render();
+    for expected in [
+        format!(
+            "export const THEME_FORMAT_VERSION = {};",
+            contracts::THEME_FORMAT_VERSION
+        ),
+        format!(
+            "export const THEME_RADIUS_MIN = {};",
+            contracts::THEME_RADIUS_MIN
+        ),
+        format!(
+            "export const THEME_RADIUS_MAX = {};",
+            contracts::THEME_RADIUS_MAX
+        ),
+        format!(
+            "export const THEME_TEXT_SIZE_MIN = {};",
+            contracts::THEME_TEXT_SIZE_MIN
+        ),
+        format!(
+            "export const THEME_TEXT_SIZE_MAX = {};",
+            contracts::THEME_TEXT_SIZE_MAX
+        ),
+        format!(
+            "export const THEME_MAX_COMPONENTS = {};",
+            contracts::THEME_MAX_COMPONENTS
+        ),
+        format!(
+            "export const THEME_MAX_SLOTS = {};",
+            contracts::THEME_MAX_SLOTS
+        ),
+        "export const THEME_COLOR_ROLES = [\"primary\", \"destructive\", \"success\", \"warning\", \"info\", \"background\", \"sidebar\"] as const;".to_owned(),
+    ] {
+        assert!(files["theme.ts"].contains(&expected), "{expected}");
+    }
+    assert!(files["index.ts"].contains(
+        "export { THEME_COLOR_ROLES, THEME_FORMAT_VERSION, THEME_MAX_COMPONENTS, THEME_MAX_SLOTS, THEME_RADIUS_MAX, THEME_RADIUS_MIN, THEME_TEXT_SIZE_MAX, THEME_TEXT_SIZE_MIN } from \"./theme\";"
+    ));
+}
+
+#[test]
+fn every_theme_type_is_exported_from_the_barrel() {
+    let files = codegen::render();
+    for name in [
+        "Density",
+        "SaveThemeDraftRequest",
+        "ThemeColor",
+        "ThemeColors",
+        "ThemeDocument",
+        "ThemeRecord",
+        "ThemeRevisionRequest",
+        "ThemeState",
+    ] {
+        assert!(files.contains_key(&format!("{name}.ts")), "{name}");
+        let export = format!("export type {{ {name} }} from \"./{name}\";");
+        assert!(files["index.ts"].contains(&export), "{name}");
+    }
+}

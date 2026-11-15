@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react"
 import type { ComponentInstance } from "@/generated"
 
 import type { FieldApi, FormActions } from "./context"
-import { InputHost, StaticHost } from "./hosts"
+import { ContainerHost, InputHost, StaticHost } from "./hosts"
 
 import { type Rule, runRules } from "./rules"
 import {
@@ -82,7 +82,7 @@ export type StaticProps<S extends SettingsSchema, Slot extends string> = CommonP
   readonly form: FormActions
 }
 
-type Meta<S extends SettingsSchema, Slot extends string> = {
+export type Meta<S extends SettingsSchema, Slot extends string> = {
   /** Stable id stored in documents, such as `text-field`. */
   readonly type: string
   readonly displayName: string
@@ -321,7 +321,8 @@ export function defineContainer<S extends SettingsSchema, const Slot extends str
         regionLabel: label ? (name) => label(settings, name) : sameName,
         field: null,
         render: (mode, region, design) => (
-          <spec.Render
+          <ContainerHost
+            spec={spec}
             instance={info}
             settings={settings}
             slots={slots}

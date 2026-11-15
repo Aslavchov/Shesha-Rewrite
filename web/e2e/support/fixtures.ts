@@ -72,14 +72,15 @@ export { expect }
 /**
  * The pages reachable from the sidebar, in order. `arrival` is how the page's
  * empty state says when it will be built (docs/roadmap.md); pages that are
- * built (Home, Forms since Phase 1, Designer since Phase 2) have none.
+ * built (Home, Forms since Phase 1, Designer since Phase 2, Themes since
+ * Phase 4) have none.
  */
 export const NAV = [
   { id: "home", path: "/", title: "Home", arrival: null },
   { id: "forms", path: "/forms", title: "Forms", arrival: null },
   { id: "designer", path: "/designer", title: "Designer", arrival: null },
+  { id: "themes", path: "/themes", title: "Themes", arrival: null },
   { id: "entities", path: "/entities", title: "Entities", arrival: "Arrives in Phase 5." },
-  { id: "themes", path: "/themes", title: "Themes", arrival: "Arrives in Phase 4." },
   { id: "settings", path: "/settings", title: "Settings", arrival: "Arrives after v1." },
 ] as const
 

@@ -8,8 +8,8 @@ Shesha 2.0 v1 is built in eight phases. Each phase has a spec in `docs/specs/` a
 | 1 | Form schema and runtime renderer | Built ([spec](specs/phase-1.md), [report](reports/phase-1.md)) |
 | 2 | Designer canvas | Built ([spec](specs/phase-2.md), [report](reports/phase-2.md)) |
 | 3 | Properties panel and style slots, and five more components: Card, Tabs, Text, Alert and Radio group | Built ([spec](specs/phase-3.md), [report](reports/phase-3.md)) |
-| 4 | Theme system | Next |
-| 5 | Entities, binding and CRUD | |
+| 4 | Theme system | Built ([spec](specs/phase-4.md), [report](reports/phase-4.md)) |
+| 5 | Entities, binding and CRUD | Next |
 | 6 | Scripting, events and form API | |
 | 7 | Polish and proof app | |
 
@@ -22,6 +22,6 @@ The shell built in Phase 0 has a placeholder for every page that is not built ye
 | Home | Phase 0 (built) |
 | Forms | Phase 1 (built) |
 | Designer | Phase 2 (built) |
-| Themes | Phase 4 |
+| Themes | Phase 4 (built) |
 | Entities | Phase 5 |
 | Settings | After v1 (not in any v1 phase) |

@@ -89,6 +89,14 @@ Press **New form** on the Forms page, give the form a name, and it opens in the 
 - Changes **save themselves** a moment after the last edit; the status beside the form's name says so. If the form was changed somewhere else in the meantime, the designer stops saving, says so, and offers to reload.
 - **From the keyboard:** Tab moves between the toolbox, the canvas, the outline and the properties panel; in the toolbox the arrow keys move between items and Enter adds one; the arrow keys select; Alt+↑ and Alt+↓ move the selection up and down, into and out of containers. The keyboard button in the toolbar lists every shortcut.
 
+### Themes
+
+**Themes** in the sidebar restyles the whole app, with no rebuild: the brand and status colours, the page background and the sidebar, roundness, text size and density, and a default look for each component. Every change shows at once in a preview beside the controls, in light or dark; the rest of the app keeps the published theme until you press **Publish**.
+
+- A **dark value** you do not set is worked out from the light one, keeping its hue. Text on a colour is chosen for you to stay readable; where a colour cannot reach 4.5:1, the editor says so.
+- **Component defaults** use the same Appearance editor as the designer. A form's author can still override any of them on one instance; the designer shows which values come from the theme.
+- The draft **saves itself** and survives a reload. **Discard** returns it to the published theme; **Reset to default** makes a draft of the built-in look. Undo and redo cover every change. If the theme is changed in another tab, saving stops and the editor offers to reload.
+
 ### The forms API
 
 Forms can also be created and changed through the API. A form is a JSON document ([ADR 0003](docs/adr/0003-form-document.md)):
@@ -118,6 +126,20 @@ curl -X POST http://localhost:7400/api/forms -H "Content-Type: application/json"
 | `DELETE /api/forms/{id}` | Deletes it. |
 
 An invalid document is refused with 400 and a list of every problem and where it is ([ADR 0007](docs/adr/0007-error-details-and-forms-api.md)).
+
+### The theme API
+
+The app has one theme, stored as a sparse JSON document ([ADR 0010](docs/adr/0010-themes.md)): only what differs from the built-in look.
+
+| Endpoint | What it does |
+| --- | --- |
+| `GET /api/theme` | Returns the published theme and its revision. |
+| `GET /api/theme/draft` | Returns the draft and the published theme, and whether they differ. |
+| `PUT /api/theme/draft` | Saves the draft from `{ "revision": n, "document": … }`. A stale revision is refused with 409. |
+| `POST /api/theme/publish` | Makes the draft the published theme, from `{ "revision": n }` (the draft's). |
+| `POST /api/theme/discard` | Puts the draft back to the published theme, from `{ "revision": n }`. |
+
+An invalid theme is refused with 400 `invalid_theme` and a list of every problem. `--demo` resets the theme to the built-in look.
 
 ## Development
 
@@ -161,8 +183,9 @@ Pull requests and pushes to `main` run the checks, the Linux build with its smok
 │   │   │   ├── model/        # the editing model: operations, commands, undo history, the server's rules
 │   │   │   ├── drag/         # drag and drop on Pointer Events
 │   │   │   ├── properties/   # the properties panel, generated from definitions
-│   │   │   ├── appearance/   # the Appearance editor (reused by the Phase 4 theme editor)
+│   │   │   ├── appearance/   # the Appearance editor (reused by the theme editor)
 │   │   │   └── *.tsx         # canvas, outline, toolbox, toolbar
+│   │   ├── theme/            # theme values to CSS, the published theme, the theme editor
 │   │   ├── components/ui/    # shadcn/ui sources (owned, editable)
 │   │   ├── styles/tokens.css # the single source of design values
 │   │   └── generated/        # ts-rs output, never edited by hand
@@ -182,6 +205,7 @@ Pull requests and pushes to `main` run the checks, the Linux build with its smok
 - [Phase 1 spec](docs/specs/phase-1.md) and [Phase 1 report](docs/reports/phase-1.md)
 - [Phase 2 spec](docs/specs/phase-2.md) and [Phase 2 report](docs/reports/phase-2.md)
 - [Phase 3 spec](docs/specs/phase-3.md) and [Phase 3 report](docs/reports/phase-3.md)
+- [Phase 4 spec](docs/specs/phase-4.md) and [Phase 4 report](docs/reports/phase-4.md)
 - [ADR 0001: the stack](docs/adr/0001-stack.md)
 - [ADR 0002: design tokens](docs/adr/0002-tokens.md)
 - [ADR 0003: the form document format](docs/adr/0003-form-document.md)
@@ -191,3 +215,4 @@ Pull requests and pushes to `main` run the checks, the Linux build with its smok
 - [ADR 0007: the error shape's `details` field, and the forms API](docs/adr/0007-error-details-and-forms-api.md)
 - [ADR 0008: the designer](docs/adr/0008-designer.md)
 - [ADR 0009: properties and styles](docs/adr/0009-properties-and-styles.md)
+- [ADR 0010: themes](docs/adr/0010-themes.md)
