@@ -1,6 +1,6 @@
 import { helpTextSetting, labelSetting, placeholderSetting } from "../../parts/settings"
 import { requiredSetting } from "../../runtime/rules"
-import { optionalText, options } from "../../runtime/settings"
+import { optionalChoiceFrom, optionChoices, options } from "../../runtime/settings"
 
 export const settings = {
   label: labelSetting("Select"),
@@ -11,10 +11,11 @@ export const settings = {
     help: "The choices: the label is shown, the value is stored.",
     group: "data",
   }),
-  defaultValue: optionalText({
+  defaultValue: optionalChoiceFrom({
     label: "Default value",
-    help: "The value of one of the options.",
+    help: "The option chosen when the form opens.",
     group: "data",
+    from: (resolved) => optionChoices(resolved.options),
   }),
   required: requiredSetting,
 }

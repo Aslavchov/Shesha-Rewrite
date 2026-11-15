@@ -11,9 +11,12 @@ import { checkDocument, limitProblem } from "./rules"
 import { allInstances, type Position, ROOT_REGION } from "./tree"
 
 /**
- * C2-15: the designer never creates a document the server would reject.
+ * C2-15 and C3-16: the designer never creates a document the server would
+ * reject.
  *
- * Random sequences of add, move, step, delete, duplicate, undo and redo are
+ * Random sequences of add, move, step, delete, duplicate, undo and redo, and
+ * since Phase 3 renames, data paths, settings, styles and the form's own name
+ * and description, valid and invalid, some of them merged into runs, are
  * run through the same `runCommand` the designer uses, from starting
  * documents of every awkward kind the server stores. After every command the
  * document is checked against the server's rules (`checkDocument`, which the
@@ -29,7 +32,17 @@ const NAMES = ["textField1", "textField2", "columns1", "container1", "button1", 
 /** Data paths that are not the instance's name, and can clash with a new one. */
 const PATHS = ["person.first", "person.last", "textField3.inner", "datePicker1", "x.y.z"]
 /** Types to build with: containers, inputs, a static one, and one this build does not have. */
-const START_TYPES = ["columns", "container", "text-field", "select", "button", "mystery"]
+const START_TYPES = [
+  "columns",
+  "container",
+  "tabs",
+  "card",
+  "text-field",
+  "select",
+  "radio-group",
+  "button",
+  "mystery",
+]
 
 /**
  * Builds a valid document from a list of numbers: each number decides the
@@ -50,7 +63,12 @@ function buildDocument(choices: readonly number[]): FormDocument {
     names.add(name)
 
     const made: ComponentInstance = { id, type, name }
-    if (type === "text-field" || type === "select" || type === "mystery") {
+    if (
+      type === "text-field" ||
+      type === "select" ||
+      type === "radio-group" ||
+      type === "mystery"
+    ) {
       // Bound to its name, to another path, or (wrongly, but storably) to nothing.
       const choice = pick(4)
       const path = choice === 0 ? null : choice === 1 ? PATHS[pick(PATHS.length)] : name
@@ -70,10 +88,18 @@ function buildDocument(choices: readonly number[]): FormDocument {
     if (
       depth < 4 &&
       count < 14 &&
-      (type === "columns" || type === "container" || type === "mystery")
+      (type === "columns" ||
+        type === "container" ||
+        type === "tabs" ||
+        type === "card" ||
+        type === "mystery")
     ) {
       const regionNames =
-        type === "container" ? ["content"] : ["col1", "col2", "col3", "col4", "content"]
+        type === "container" || type === "card"
+          ? ["content"]
+          : type === "tabs"
+            ? ["tab1", "tab2", "tab3"]
+            : ["col1", "col2", "col3", "col4", "content"]
       const regions: Record<string, ComponentInstance[]> = {}
       for (const regionName of regionNames) {
         const children = pick(3)
@@ -149,6 +175,15 @@ const step = fc.record({
     "duplicate",
     "undo",
     "redo",
+    "rename",
+    "bind",
+    "setting",
+    "run",
+    "reset",
+    "style",
+    "resetSlot",
+    "formName",
+    "formDescription",
   ),
   a: fc.nat(10_000),
   b: fc.nat(10_000),
@@ -166,6 +201,71 @@ function anyPosition(state: EditorState, a: number, b: number): Position {
   if (choice === instances.length + 1) return { parent: "missing", region: "content", index: 0 }
   return { parent: instances[choice].id, region: regions[b % regions.length], index: (a + b) % 5 }
 }
+
+/** Names to try: valid, taken, too long, not identifiers. */
+const NEW_NAMES = ["firstName", "a", "textField1", "first name", "1st", "", "$ok", "x".repeat(65)]
+/** Data paths to try, valid and not. */
+const NEW_PATHS = ["person.firstName", "person", "a", "x.y.z", "x..y", "1st", "", "textField1"]
+/** Setting keys every kind of component has, some have, and none has. */
+const KEYS = [
+  "label",
+  "required",
+  "maxLength",
+  "minLength",
+  "placeholder",
+  "columns",
+  "gap",
+  "tabs",
+  "defaultTab",
+  "options",
+  "title",
+  "variant",
+  "messages",
+  "nonsense",
+]
+/** Values to try for them, of every shape. */
+const VALUES: unknown[] = [
+  "Text",
+  "",
+  true,
+  false,
+  -3,
+  0,
+  2,
+  3,
+  5,
+  4.5,
+  null,
+  "lg",
+  "huge",
+  [{ key: "tab1", label: "One" }],
+  [
+    { key: "tab1", label: "One" },
+    { key: "tabX", label: "New" },
+  ],
+  [{ key: "1st", label: "Bad" }],
+  [{ label: "A", value: "a" }],
+  [
+    { label: "A", value: "a" },
+    { label: "B", value: "a" },
+  ],
+  { required: "Say something" },
+  { nested: { deeper: [1, [2, [3]]] } },
+]
+const SLOTS = ["root", "label", "control", "item", "tab", "popup", "nowhere"]
+const STYLE_VALUES: [string, unknown][] = [
+  ["color", "#003BB2"],
+  ["color", { token: "primary" }],
+  ["color", { token: "brand" }],
+  ["color", "red"],
+  ["background", { token: "muted" }],
+  ["borderColor", "#00000080"],
+  ["radius", "full"],
+  ["radius", "huge"],
+  ["fontWeight", "semibold"],
+  ["padding", "lg"],
+  ["padding", undefined],
+]
 
 function toCommand(state: EditorState, { kind, a, b, c }: Step): Command {
   const instances = [...allInstances(state.document)]
@@ -185,6 +285,47 @@ function toCommand(state: EditorState, { kind, a, b, c }: Step): Command {
     case "undo":
     case "redo":
       return kind === "undo" || kind === "redo" ? { type: kind } : { type: kind, id }
+    case "rename":
+      return { type: "rename", id, name: NEW_NAMES[b % NEW_NAMES.length] }
+    case "bind":
+      return { type: "bind", id, path: NEW_PATHS[b % NEW_PATHS.length] }
+    case "setting":
+    case "run":
+      return {
+        type: "set-setting",
+        // Now and then the form's own settings.
+        id: c % 7 === 0 ? null : id,
+        key: KEYS[b % KEYS.length],
+        value: VALUES[c % VALUES.length],
+        // A run: these merge with the ones before them that share it.
+        ...(kind === "run" ? { merge: `run${a % 2}` } : {}),
+      }
+    case "reset":
+      return { type: "reset-setting", id: c % 7 === 0 ? null : id, key: KEYS[b % KEYS.length] }
+    case "style": {
+      const [property, value] = STYLE_VALUES[c % STYLE_VALUES.length]
+      return {
+        type: "set-style",
+        id,
+        slot: SLOTS[b % SLOTS.length],
+        property: property as "color",
+        value: value as "#000000",
+        ...(a % 3 === 0 ? { merge: "styleRun" } : {}),
+      }
+    }
+    case "resetSlot":
+      return { type: "reset-slot", id, slot: SLOTS[b % SLOTS.length] }
+    case "formName":
+      return {
+        type: "rename-form",
+        name: ["Contact", "", "   ", "x".repeat(201), "Ünïcödé"][b % 5],
+        merge: "formName",
+      }
+    case "formDescription":
+      return {
+        type: "describe-form",
+        description: ["Who you are.", "", "x".repeat(1001)][b % 3],
+      }
   }
 }
 
@@ -243,8 +384,16 @@ describe("C2-15 the designer never creates a document the server would reject", 
             }
             if (command.type === "undo" || command.type === "redo") continue
 
-            // Undo gives back the very document from before, and redo this one.
+            // Undo gives back the very document from before, and redo this
+            // one. A change merged into the run before it is undone with that
+            // run: undo gives back the document from before the whole run.
+            const merged = state.past.length === before.past.length
             const undone = runCommand(state, { type: "undo" }, environment).state
+            if (merged) {
+              expect(state.past.at(-1)?.merge, context).toBeDefined()
+              expect(undone.document, context).toBe(state.past.at(-1)?.document)
+              continue
+            }
             expect(undone.document, context).toBe(before.document)
             expect(undone.selection, context).toBe(before.selection)
             const redone = runCommand(undone, { type: "redo" }, environment).state

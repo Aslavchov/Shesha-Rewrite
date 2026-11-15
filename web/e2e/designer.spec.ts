@@ -479,14 +479,15 @@ test.describe("C2-6 Selection", () => {
     await openDesigner(page, id)
     const properties = page.getByTestId("designer-properties")
     await expect(properties).toContainText("Nothing is selected")
-    await expect(properties).toContainText("Settings arrive in Phase 3")
+    // Since Phase 3, nothing selected means the form's own properties.
+    await expect(page.getByTestId("props-form-name")).toHaveValue("Selection")
 
     await canvas(page, "alpha").click()
     await expect(canvas(page, "alpha")).toHaveAttribute("aria-pressed", "true")
     await expect(outline(page, "alpha")).toHaveAttribute("aria-selected", "true")
     await expect(page.getByTestId("designer-properties-name")).toHaveText("alpha")
     await expect(page.getByTestId("designer-properties-type")).toHaveText("Text field")
-    await expect(properties).toContainText("Phase 3")
+    await expect(page.getByTestId("props-name")).toHaveValue("alpha")
 
     await outline(page, "beta").click()
     await expect(outline(page, "beta")).toHaveAttribute("aria-selected", "true")
@@ -517,8 +518,11 @@ test.describe("C2-6 Selection", () => {
   }) => {
     const id = await createForm(request, "Outlines", [field("alpha"), field("beta")])
     await openDesigner(page, id)
+    // Since Phase 3 the ring is drawn a little outside the box (section 5).
     const ring = (name: string) =>
-      canvas(page, name).evaluate((element) => getComputedStyle(element).boxShadow)
+      canvas(page, name)
+        .locator("[data-slot=canvas-outline]")
+        .evaluate((element) => getComputedStyle(element).boxShadow)
 
     expect(await ring("alpha")).toBe("none")
     await canvas(page, "alpha").hover()

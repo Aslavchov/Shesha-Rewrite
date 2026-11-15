@@ -1,7 +1,7 @@
 import { TextCursorInputIcon } from "lucide-react"
 
 import { defineInput } from "../../runtime"
-import { maxLength, minLength, pattern, required } from "../../runtime/rules"
+import { lengthRange, maxLength, minLength, pattern, required } from "../../runtime/rules"
 import { settings, slots } from "./settings"
 import { TextFieldEdit, TextFieldReadOnly } from "./text-field"
 
@@ -14,6 +14,7 @@ export const textField = defineInput({
   valueType: "text",
   settings,
   defaultValue: (resolved) => resolved.defaultValue,
+  constraints: [lengthRange],
   rules: [required, minLength, maxLength, pattern],
   slots,
   Edit: TextFieldEdit,

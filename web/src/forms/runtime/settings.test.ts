@@ -4,17 +4,21 @@ import {
   choice,
   messagesSetting,
   number,
+  optionalChoiceFrom,
   optionalDate,
   optionalNumber,
   optionalPattern,
   optionalProportions,
   optionalText,
+  optionChoices,
   options,
   resolveSettings,
   space,
+  tabs,
   text,
   toggle,
 } from "./settings"
+import { dateRange, lengthRange } from "./rules"
 
 const meta = { label: "Thing", group: "general" } as const
 
@@ -172,5 +176,73 @@ describe("resolveSettings", () => {
 
     expect(settings.label).toBe("Untitled")
     expect(problems.map((problem) => problem.setting)).toEqual(["__proto__"])
+  })
+})
+
+describe("Phase 3 descriptors", () => {
+  it("a choice from another setting reads any text, and offers what that setting holds", () => {
+    const setting = optionalChoiceFrom({
+      ...meta,
+      from: (resolved) => optionChoices(resolved.options),
+    })
+    expect(setting.kind).toBe("choice")
+    expect(setting.default).toBeNull()
+    expect(setting.parse("anything")).toBe("anything")
+    expect(setting.parse("")).toBeNull()
+    expect(setting.parse(3)).toBeUndefined()
+    expect(setting.choicesFrom?.({ options: [{ label: "", value: "x" }] })).toEqual([
+      { value: "x", label: "x" },
+    ])
+  })
+
+  it("tabs need at least one tab, with distinct keys that are region names", () => {
+    const setting = tabs({ ...meta, default: [{ key: "tab1", label: "Tab 1" }] })
+    expect(setting.parse([{ key: "a", label: "A" }])).toEqual([{ key: "a", label: "A" }])
+    expect(setting.parse([])).toBeUndefined()
+    expect(setting.parse([{ key: "x".repeat(65), label: "A" }])).toBeUndefined()
+    expect(setting.parse([{ key: "a-b_c", label: "" }])).toEqual([{ key: "a-b_c", label: "" }])
+  })
+
+  it("number settings say their limits, and text says whether it runs over lines", () => {
+    expect(number({ ...meta, default: 2, min: 2, max: 4, whole: true }).limits).toEqual({
+      min: 2,
+      max: 4,
+      whole: true,
+    })
+    expect(text({ ...meta, default: "", multiline: true }).multiline).toBe(true)
+  })
+})
+
+describe("constraints between settings", () => {
+  const schema = {
+    minLength: optionalNumber({ ...meta, min: 0 }),
+    maxLength: optionalNumber({ ...meta, min: 0 }),
+  }
+
+  it("reports a broken constraint on its first setting, naming every setting it reads", () => {
+    const { problems } = resolveSettings(schema, { minLength: 6, maxLength: 5 }, [lengthRange])
+    expect(problems).toEqual([
+      {
+        setting: "minLength",
+        message: "The minimum length is more than the maximum length.",
+        related: ["minLength", "maxLength"],
+      },
+    ])
+  })
+
+  it("is quiet when either side is unset, or they are in order", () => {
+    for (const stored of [{ minLength: 6 }, { maxLength: 5 }, { minLength: 5, maxLength: 5 }]) {
+      expect(resolveSettings(schema, stored, [lengthRange]).problems).toEqual([])
+    }
+  })
+
+  it("compares dates as dates", () => {
+    const dates = { minDate: optionalDate(meta), maxDate: optionalDate(meta) }
+    const late = { minDate: "2026-02-01", maxDate: "2026-01-31" }
+    expect(resolveSettings(dates, late, [dateRange]).problems).toHaveLength(1)
+    expect(
+      resolveSettings(dates, { minDate: "2026-01-01", maxDate: "2026-01-31" }, [dateRange])
+        .problems,
+    ).toEqual([])
   })
 })

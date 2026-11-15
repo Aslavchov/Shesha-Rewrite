@@ -29,6 +29,8 @@ export type OutlineNode = {
 
 export type OutlineRegion = {
   readonly name: string
+  /** What people call it: a tab's label, or else its name. */
+  readonly label: string
   /** Whether the form shows this region. Nothing can be dropped into one it does not. */
   readonly shown: boolean
   readonly children: readonly OutlineNode[]
@@ -50,15 +52,20 @@ export type Schema = {
 export function createSchema(registry: Registry): Schema {
   const outlines = new WeakMap<FormDocument, Outline>()
   // An instance object never changes, so neither do the regions it has.
-  const regionNames = new WeakMap<ComponentInstance, readonly string[]>()
+  type Regions = { names: readonly string[]; label: (name: string) => string }
+  const regionNames = new WeakMap<ComponentInstance, Regions>()
 
   function regionsOf(instance: ComponentInstance, definition: ComponentDefinition | null) {
-    let names = regionNames.get(instance)
-    if (!names) {
-      names = definition?.prepare(instance).regions ?? []
-      regionNames.set(instance, names)
+    let regions = regionNames.get(instance)
+    if (!regions) {
+      const prepared = definition?.prepare(instance)
+      regions = {
+        names: prepared?.regions ?? [],
+        label: prepared?.regionLabel ?? ((name) => name),
+      }
+      regionNames.set(instance, regions)
     }
-    return names
+    return regions
   }
 
   function build(document: FormDocument): Outline {
@@ -86,12 +93,12 @@ export function createSchema(registry: Registry): Schema {
         byId.set(instance.id, node)
         order.push(node)
 
-        const real = regionsOf(instance, definition)
+        const { names: real, label } = regionsOf(instance, definition)
         const stored = Object.keys(instance.regions ?? {}).filter((name) => !real.includes(name))
         for (const name of [...real, ...stored]) {
           const regionShown = shown && real.includes(name)
           const children = list(instance.regions?.[name] ?? [], node, name, regionShown)
-          regions.push({ name, shown: regionShown, children })
+          regions.push({ name, label: label(name), shown: regionShown, children })
         }
         return node
       })
@@ -116,7 +123,9 @@ export function createSchema(registry: Registry): Schema {
 
 /** The children of the region a position is in, or null if there is no such region. */
 export function regionAt(outline: Outline, position: Position): OutlineRegion | null {
-  if (position.parent === null) return { name: ROOT_REGION, shown: true, children: outline.roots }
+  if (position.parent === null) {
+    return { name: ROOT_REGION, label: ROOT_REGION, shown: true, children: outline.roots }
+  }
   const parent = outline.byId.get(position.parent)
   return parent?.regions.find((region) => region.name === position.region) ?? null
 }

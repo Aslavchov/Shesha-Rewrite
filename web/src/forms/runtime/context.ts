@@ -18,6 +18,21 @@ export type FormContextValue = {
 
 export const FormContext = React.createContext<FormContextValue | null>(null)
 
+/**
+ * Sent, bubbling, to a control that is about to receive focus because it
+ * failed validation. A component that hides some of its content (Tabs)
+ * listens for it and shows the part the control is in, synchronously, so the
+ * focus that follows lands. Added in Phase 3 (ADR 0009).
+ */
+export const REVEAL_EVENT = "form-reveal"
+
+/** Shows the control if something hides it, then focuses it. */
+export function revealAndFocus(element: HTMLElement | null): void {
+  if (!element) return
+  element.dispatchEvent(new Event(REVEAL_EVENT, { bubbles: true }))
+  element.focus()
+}
+
 export function useFormContext(): FormContextValue {
   const context = React.useContext(FormContext)
   if (!context) throw new Error("Form components can only be rendered inside a FormRenderer.")

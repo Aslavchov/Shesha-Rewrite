@@ -1,7 +1,7 @@
 import { HashIcon } from "lucide-react"
 
 import { defineInput } from "../../runtime"
-import { max, min, required, wholeNumber } from "../../runtime/rules"
+import { max, min, numberRange, required, wholeNumber } from "../../runtime/rules"
 import { NumberFieldEdit, NumberFieldReadOnly } from "./number-field"
 import { settings, slots } from "./settings"
 
@@ -14,6 +14,7 @@ export const numberField = defineInput({
   valueType: "number",
   settings,
   defaultValue: (resolved) => resolved.defaultValue,
+  constraints: [numberRange],
   rules: [required, wholeNumber, min, max],
   slots,
   Edit: NumberFieldEdit,

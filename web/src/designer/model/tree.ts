@@ -136,6 +136,23 @@ export function insertInstance(
   )
 }
 
+/**
+ * Replaces the instance with this id by what `change` makes of it, in place.
+ * Returns null if it is not in the document.
+ */
+export function updateInstance(
+  document: FormDocument,
+  id: string,
+  change: (instance: ComponentInstance) => ComponentInstance,
+): FormDocument | null {
+  const found = findInstance(document, id)
+  if (!found) return null
+  const { parent, region, index } = found.position
+  return changeRegion(document, parent, region, (children) =>
+    children.with(index, change(found.instance)),
+  )
+}
+
 /** Takes the instance with this id, and everything inside it, out of the document. */
 export function removeInstance(
   document: FormDocument,

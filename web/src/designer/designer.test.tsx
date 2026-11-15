@@ -144,6 +144,7 @@ describe("the designer's layout", () => {
     expect(groups).toEqual([
       ["Inputs", count("input")],
       ["Layout", count("layout")],
+      ["Content", count("content")],
       ["Actions", count("action")],
     ])
   })

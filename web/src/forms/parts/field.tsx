@@ -6,6 +6,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field"
 
 import type { FieldApi, SlotProps, Slots } from "../runtime"
@@ -45,9 +46,12 @@ type SharedProps = {
   children: (control: ControlProps) => React.ReactNode
 }
 
+/** What the shared parts read: everything but the control. */
+type PartsProps = Omit<SharedProps, "children">
+
 const countId = (field: SharedProps["field"]) => `${field.id}-count`
 
-function controlProps({ name, field, required, helpText, count }: SharedProps): ControlProps {
+function controlProps({ name, field, required, helpText, count }: PartsProps): ControlProps {
   const describedBy = [
     helpText === null ? null : field.descriptionId,
     field.error === null ? null : field.errorId,
@@ -62,21 +66,25 @@ function controlProps({ name, field, required, helpText, count }: SharedProps): 
   }
 }
 
-function Label({ field, label, required, slots }: SharedProps) {
+function RequiredMarker({ required }: { required?: boolean }) {
+  return required ? (
+    // Hidden from assistive technology: the control says aria-required.
+    <span aria-hidden="true" data-slot="field-required" className="text-destructive">
+      *
+    </span>
+  ) : null
+}
+
+function Label({ field, label, required, slots }: PartsProps) {
   return (
     <FieldLabel htmlFor={field.id} className="gap-0.5" {...slots.label}>
       {label}
-      {required ? (
-        // Hidden from assistive technology: the control says aria-required.
-        <span aria-hidden="true" data-slot="field-required" className="text-destructive">
-          *
-        </span>
-      ) : null}
+      <RequiredMarker required={required} />
     </FieldLabel>
   )
 }
 
-function Messages({ name, field, helpText, slots, count }: SharedProps) {
+function Messages({ name, field, helpText, slots, count }: PartsProps) {
   const messages = (
     <>
       <FieldError id={field.errorId} data-testid={`field-${name}-error`} {...slots.error}>
@@ -130,6 +138,42 @@ export function InlineField(props: SharedProps) {
         <Label {...props} />
         <Messages {...props} />
       </FieldContent>
+    </Field>
+  )
+}
+
+/** The attributes for a group of controls (a radio group), and the id of each control in it. */
+export type GroupControlProps = Omit<ControlProps, "id"> & {
+  "aria-labelledby": string
+  /** The id of the group's control at `index`. The first one's is the field's control id. */
+  itemId: (index: number) => string
+}
+
+/**
+ * A label above a group of controls; error and help text below. For Radio
+ * group. The label names the group rather than one control, and the field's
+ * control id goes to the first control, which is where focus goes when the
+ * field is invalid.
+ */
+export function GroupField({
+  children,
+  ...props
+}: PartsProps & { children: (control: GroupControlProps) => React.ReactNode }) {
+  const { field, label, required, slots } = props
+  const labelId = `${field.id}-label`
+  const { id, ...control } = controlProps(props)
+  return (
+    <Field {...slots.root}>
+      <FieldTitle id={labelId} className="gap-0.5 leading-snug" {...slots.label}>
+        {label}
+        <RequiredMarker required={required} />
+      </FieldTitle>
+      {children({
+        ...control,
+        "aria-labelledby": labelId,
+        itemId: (index) => (index === 0 ? id : `${id}-${index}`),
+      })}
+      <Messages {...props} />
     </Field>
   )
 }

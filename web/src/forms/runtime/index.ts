@@ -1,5 +1,5 @@
 /** What a component folder imports to define itself (ADR 0004). */
-export type { FieldApi, FormActions } from "./context"
+export { type FieldApi, type FormActions, REVEAL_EVENT } from "./context"
 export {
   type ComponentCategory,
   type ComponentDefinition,
@@ -12,11 +12,34 @@ export {
   type InputEditProps,
   type InputReadOnlyProps,
   type InstanceInfo,
+  type InstanceProblem,
+  REGION_SWITCH_ATTRIBUTE,
+  type RegionSwitchProps,
   type Registry,
   type StaticProps,
 } from "./definition"
 export type { DesignInstanceProps, DesignRegionProps, DesignSurface } from "./design"
 export { GAP_CLASS } from "./layout"
+export { formSettings } from "./model"
+export {
+  type Choice,
+  resolveSettings,
+  type Setting,
+  type SettingGroup,
+  type SettingKind,
+  type SettingProblem,
+  type SettingsSchema,
+  type Tab,
+} from "./settings"
 export { FormRenderer, type FormRendererProps } from "./renderer"
-export type { SlotProps, Slots } from "./styles"
+export {
+  COLOR_TOKENS,
+  FONT_WEIGHTS,
+  RADIUS_STEPS,
+  SLOT_ATTRIBUTE,
+  type SlotProps,
+  type Slots,
+  slotStyle,
+  SPACE_STEPS,
+} from "./styles"
 export type { NestedValues } from "./values"

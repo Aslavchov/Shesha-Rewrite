@@ -72,18 +72,18 @@ describe("resolveSlots", () => {
     const resolved = resolveSlots(slots, "email", { label: { color: "#003BB2" } })
 
     expect(resolved.slots).toEqual({
-      root: { "data-testid": "field-email" },
-      label: { style: { color: "#003BB2" } },
-      control: {},
+      root: { "data-form-slot": "root", "data-testid": "field-email" },
+      label: { "data-form-slot": "label", style: { color: "#003BB2" } },
+      control: { "data-form-slot": "control" },
     })
     expect(resolved.problems).toEqual([])
   })
 
   it("works with no styles at all", () => {
     expect(resolveSlots(slots, "email", undefined).slots).toEqual({
-      root: { "data-testid": "field-email" },
-      label: {},
-      control: {},
+      root: { "data-form-slot": "root", "data-testid": "field-email" },
+      label: { "data-form-slot": "label" },
+      control: { "data-form-slot": "control" },
     })
   })
 
@@ -91,6 +91,7 @@ describe("resolveSlots", () => {
     const { slots: resolved } = resolveSlots(slots, "box", { root: { padding: "md" } })
 
     expect(resolved.root).toEqual({
+      "data-form-slot": "root",
       style: { padding: "var(--sys-space-md)" },
       "data-testid": "field-box",
     })
@@ -101,6 +102,12 @@ describe("resolveSlots", () => {
 
     expect(resolved.slots).not.toHaveProperty("popup")
     expect(resolved.problems).toEqual([{ slot: "popup", message: expect.any(String) }])
+  })
+
+  it("names every slot on its element, so the designer can find the part being styled", () => {
+    const { slots: resolved } = resolveSlots(slots, "email", undefined)
+    expect(resolved.label["data-form-slot"]).toBe("label")
+    expect(resolved.control["data-form-slot"]).toBe("control")
   })
 })
 

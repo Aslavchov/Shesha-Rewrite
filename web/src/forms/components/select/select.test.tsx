@@ -88,6 +88,14 @@ describe("select: definition", () => {
       expect(setting.group).not.toBe("")
     }
   })
+
+  it("offers its options as the choices for its default value", () => {
+    const { defaultValue } = select.settings
+    expect(defaultValue.kind).toBe("choice")
+    expect(defaultValue.choicesFrom?.({ options: [{ label: "Email", value: "email" }] })).toEqual([
+      { value: "email", label: "Email" },
+    ])
+  })
 })
 
 describe("select: default render", () => {

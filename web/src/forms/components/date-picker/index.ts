@@ -1,7 +1,7 @@
 import { CalendarDaysIcon } from "lucide-react"
 
 import { defineInput } from "../../runtime"
-import { maxDate, minDate, required } from "../../runtime/rules"
+import { dateRange, maxDate, minDate, required } from "../../runtime/rules"
 import { DatePickerEdit, DatePickerReadOnly } from "./date-picker"
 import { settings, slots } from "./settings"
 
@@ -14,6 +14,7 @@ export const datePicker = defineInput({
   valueType: "date",
   settings,
   defaultValue: (resolved) => resolved.defaultValue,
+  constraints: [dateRange],
   rules: [required, minDate, maxDate],
   slots,
   Edit: DatePickerEdit,
