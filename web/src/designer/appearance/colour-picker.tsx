@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { ColorValue } from "@/generated"
 
+import { PANEL_POPUP_ATTRIBUTE } from "../properties/described-by"
 import { useDraft, useEditRun } from "../properties/edit-run"
 import { colourName, HEX_COLOUR, swatchColour, THEME_COLOURS } from "./colours"
 
@@ -93,6 +94,7 @@ export function ColourPicker({
         align="start"
         aria-label={label}
         data-testid={`${testId}-popup`}
+        {...{ [PANEL_POPUP_ATTRIBUTE]: "" }}
         className="w-72 gap-3"
       >
         <div className="flex flex-col gap-1.5">

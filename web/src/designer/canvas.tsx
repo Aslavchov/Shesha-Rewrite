@@ -153,6 +153,8 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
   const paneRef = React.useRef<HTMLElement>(null)
   /** The element the form's boxes are measured from, and the overlay is placed in. */
   const originRef = React.useRef<HTMLDivElement>(null)
+  /** The rendered form itself, without the overlay. */
+  const formRef = React.useRef<HTMLDivElement>(null)
   const [layout, setLayout] = React.useState<CanvasLayout>(EMPTY_LAYOUT)
   const layoutRef = React.useRef(layout)
   const [extras, setExtras] = React.useState<Extras>(NO_EXTRAS)
@@ -197,6 +199,22 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
     const observer = new ResizeObserver(measure)
     observer.observe(origin)
     void window.document.fonts?.ready.then(measure)
+    return () => observer.disconnect()
+  }, [measure])
+
+  // And when a component changes what it shows by itself, after the render
+  // the canvas measured: a tab panel shown by its own effect has the same
+  // size as the one it replaces, so nothing else would say so.
+  React.useEffect(() => {
+    const rendered = formRef.current
+    if (!rendered || typeof MutationObserver === "undefined") return
+    const observer = new MutationObserver(measure)
+    observer.observe(rendered, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["hidden", "class", "style"],
+    })
     return () => observer.disconnect()
   }, [measure])
 
@@ -279,7 +297,7 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
       {/* oxlint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
       <div ref={originRef} className={cn(PAPER, "relative")}>
         <Card>
-          <CardContent inert>
+          <CardContent ref={formRef} inert>
             <FormRenderer
               document={form}
               registry={store.schema.registry}

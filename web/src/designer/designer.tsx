@@ -19,6 +19,7 @@ import { DragLayer } from "./drag/drag-layer"
 import type { Command } from "./model/editor"
 import { createSchema } from "./model/schema"
 import { OutlinePanel } from "./outline-panel"
+import { PANEL_POPUP_ATTRIBUTE } from "./properties/described-by"
 import { PropertiesPanel } from "./properties/properties-panel"
 import { Autosave, type SendSave } from "./save"
 import { matchShortcut } from "./shortcuts"
@@ -149,7 +150,7 @@ const isEditable = (element: Element) =>
 
 /** Whether an element is inside the properties panel, where typing edits the form. */
 const inPanel = (element: Element) =>
-  element.closest('[data-testid="designer-properties"]') !== null
+  element.closest(`[data-testid="designer-properties"], [${PANEL_POPUP_ATTRIBUTE}]`) !== null
 
 function Workspace({
   mainId,
@@ -204,18 +205,15 @@ function Workspace({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : document.body
       if (event.defaultPrevented || drag.getState()) return
-      if (target.closest('[role="dialog"]')) return
       const shortcut = matchShortcut(event)
       if (shortcut === null) return
-      // Typing in a field is not a shortcut, with one exception: in the
-      // properties panel, undo and redo undo the edits made there, a run of
-      // typing at a time (ADR 0009), rather than the field's own keystrokes.
-      if (
-        isEditable(target) &&
-        !(inPanel(target) && (shortcut === "undo" || shortcut === "redo"))
-      ) {
-        return
-      }
+      // Typing in a field, or a key meant for an open popup, is not a
+      // shortcut, with one exception: in the properties panel and its
+      // popups, undo and redo undo the edits made there, a run of typing at
+      // a time (ADR 0009), and never the browser's own undo of some field.
+      const isHistory = shortcut === "undo" || shortcut === "redo"
+      const isPopup = target.closest('[role="dialog"]') !== null
+      if ((isEditable(target) || isPopup) && !(inPanel(target) && isHistory)) return
       const { selection } = store.getSnapshot().editor
       // Delete acts only from where the selection is shown, never from a
       // button that happens to have focus.

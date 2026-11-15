@@ -108,4 +108,36 @@ describe("the designer's store", () => {
     store.run({ type: "remove", id: "c_a" })
     expect(listener).not.toHaveBeenCalled()
   })
+
+  it("shows a tab on the canvas when asked, and the tab of whatever is selected", () => {
+    const tabsInstance = {
+      id: "c_t",
+      type: "tabs",
+      name: "t",
+      regions: { tab2: [field("inner")] },
+    }
+    const store = new DesignerStore(form([tabsInstance]), schema)
+    store.showRegion("c_t", "tab1")
+    expect(store.getSnapshot().shownRegions.get("c_t")).toBe("tab1")
+
+    // Selecting what is inside another tab shows that tab.
+    store.select("c_inner")
+    expect(store.getSnapshot().shownRegions.get("c_t")).toBe("tab2")
+
+    // Asking for what is shown already changes nothing.
+    const before = store.getSnapshot()
+    store.showRegion("c_t", "tab2")
+    expect(store.getSnapshot()).toBe(before)
+  })
+
+  it("points at one slot of one instance, and at nothing", () => {
+    const store = setup()
+    store.setHighlight({ id: "c_a", slot: "label" })
+    expect(store.getSnapshot().highlight).toEqual({ id: "c_a", slot: "label" })
+    const before = store.getSnapshot()
+    store.setHighlight({ id: "c_a", slot: "label" })
+    expect(store.getSnapshot()).toBe(before)
+    store.setHighlight(null)
+    expect(store.getSnapshot().highlight).toBeNull()
+  })
 })

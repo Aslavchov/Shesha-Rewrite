@@ -10,6 +10,7 @@ export type Instance = {
   name: string
   bind?: string
   settings?: Record<string, unknown>
+  styles?: Record<string, Record<string, unknown>>
   regions?: Record<string, Instance[]>
 }
 
