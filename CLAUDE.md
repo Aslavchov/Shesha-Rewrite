@@ -43,6 +43,22 @@ in docs/specs/ and a report in docs/reports/.
   contract, value types, name and data path rules, the slot style model, the
   forms API and the error shape's `details`.
 
+## Designer
+- web/src/designer is the form designer: ADR 0008.
+- web/src/designer/model is pure: no React, no DOM. Every change to a document
+  is one of three operations (insert, move, remove) applied through
+  `runCommand`; undo history is a list of whole documents.
+- The canvas is the real renderer in design mode, inert. Never build a second
+  set of components for it. Selection, hover, focus and drops happen on boxes
+  laid over it, placed by measuring the form.
+- The designer must never produce a document the server would refuse.
+  web/src/designer/model/rules.ts is the server's validation in TypeScript;
+  crates/server/tests/fixtures/document-rules.json holds the two together.
+  A new server rule needs a case there and the same rule in rules.ts.
+- Frozen by Phase 2 (ADR 0008): the editing operations and the undo history
+  model, the naming rule for new instances (`<type in camelCase><number>`,
+  inputs bound to their name), and autosave with revision conflict handling.
+
 ## Styling
 - web/src/styles/tokens.css is the single source of design values.
 - Components use tokens only: no raw colours, sizes or shadows in components.
@@ -69,7 +85,19 @@ in docs/specs/ and a report in docs/reports/.
 - Every user-visible behaviour in a phase spec gets an end-to-end test.
 - Unit tests fail on any console.error or console.warn. A test that expects
   one calls `expectConsoleProblems()` from web/src/test/console.ts.
-- Do not report a phase done until CI is green.
+- End-to-end tests fail on any console error or warning too. A test that makes
+  the server refuse a request on purpose calls `expectRefusal(status)`.
+
+## Working in a session
+- Run every check in the session before pushing: typecheck, lint, unit tests,
+  Rust tests, the style guard, the Linux build and the end-to-end suite.
+- Push once, when the phase is complete and every check passes. Then open the
+  pull request and stop.
+- Do not watch CI: no scheduled check-ins, no waiting for runs, and no
+  follow-up commits that only update the report. If CI fails, Auto-fix brings
+  the session back.
+- Pull request CI is Linux only. Windows and macOS builds run only when started
+  by hand from the Actions tab.
 
 ## Quality
 - Zero console errors or warnings.
@@ -87,6 +115,8 @@ Rust (rust-toolchain.toml installs the right version by itself).
   The Linux build is static and needs musl-gcc (`apt-get install musl-tools`).
 - `node scripts/check.mjs`: run every check CI runs except the end-to-end
   tests. Name groups to run only some: `web`, `server`, `types`, `style`.
+- `node scripts/smoke.mjs`: start the binary that `build.mjs` produced, check
+  that it answers, and stop it.
 - `node scripts/e2e.mjs`: run the Playwright tests against the binary that
   `build.mjs` produced. While iterating, `--binary target/debug/shesha2` uses
   a debug build (`cargo build -p server`), which serves web/dist from disk.

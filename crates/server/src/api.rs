@@ -1,10 +1,10 @@
 //! The JSON API. Mounted at `/api` by `router.rs`.
 
-use axum::extract::{OriginalUri, State};
+use axum::extract::{DefaultBodyLimit, OriginalUri, State};
 use axum::http::{Method, StatusCode};
 use axum::routing::get;
 use axum::{Json, Router};
-use contracts::{APP_NAME, AppInfo, DbStatus, HealthResponse};
+use contracts::{APP_NAME, AppInfo, DbStatus, HealthResponse, MAX_REQUEST_BYTES};
 
 use crate::error::AppError;
 use crate::router::AppState;
@@ -17,6 +17,8 @@ pub fn router() -> Router<AppState> {
         .merge(forms::router())
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
+        // The limit is a shared constant, so the designer knows it too.
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES as usize))
 }
 
 async fn health(State(state): State<AppState>) -> (StatusCode, Json<HealthResponse>) {

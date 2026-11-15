@@ -164,5 +164,7 @@
   --spacing-sidebar: var(--sys-size-sidebar);
   --spacing-sidebar-mobile: var(--sys-size-sidebar-mobile);
   --spacing-header: var(--sys-size-header);
+  --spacing-designer-toolbox: var(--sys-size-designer-toolbox);
+  --spacing-designer-panel: var(--sys-size-designer-panel);
   --container-content: var(--sys-size-content);
 }

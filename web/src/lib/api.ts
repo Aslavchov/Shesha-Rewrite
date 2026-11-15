@@ -1,4 +1,4 @@
-import type { ApiError } from "@/generated"
+import type { ApiError, ErrorDetail } from "@/generated"
 
 /**
  * Every failed API call surfaces as this error. `code` is the server's
@@ -9,12 +9,20 @@ export class ApiRequestError extends Error {
   readonly code: string
   /** HTTP status, or `null` when no response arrived at all. */
   readonly status: number | null
+  /** The located problems the server listed, if any (ADR 0007). */
+  readonly details: readonly ErrorDetail[]
 
-  constructor(code: string, message: string, status: number | null) {
+  constructor(
+    code: string,
+    message: string,
+    status: number | null,
+    details: readonly ErrorDetail[] = [],
+  ) {
     super(message)
     this.name = "ApiRequestError"
     this.code = code
     this.status = status
+    this.details = details
   }
 }
 
@@ -29,20 +37,41 @@ function isApiError(value: unknown): value is ApiError {
   return typeof code === "string" && typeof message === "string"
 }
 
-/** GET a JSON resource under /api. Throws `ApiRequestError` on any failure. */
-export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+type RequestOptions = {
+  /** Sent as JSON. */
+  body?: unknown
+  signal?: AbortSignal
+  /** Lets the request outlive the page: for a save made as the page goes away. */
+  keepalive?: boolean
+}
+
+/** Calls a JSON endpoint under /api. Throws `ApiRequestError` on any failure. */
+async function apiRequest<T>(
+  method: string,
+  path: string,
+  { body, signal, keepalive }: RequestOptions = {},
+): Promise<T> {
   let response: Response
   try {
-    response = await fetch(path, { headers: { Accept: "application/json" }, signal })
+    response = await fetch(path, {
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+      keepalive,
+    })
   } catch (cause) {
     // Let cancellations through untouched so callers can tell them apart.
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause
     throw new ApiRequestError(NETWORK_ERROR, "The server could not be reached.", null)
   }
 
-  let body: unknown
+  let parsed: unknown
   try {
-    body = await response.json()
+    parsed = await response.json()
   } catch {
     throw new ApiRequestError(
       INVALID_RESPONSE,
@@ -52,8 +81,9 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
   }
 
   if (!response.ok) {
-    if (isApiError(body)) {
-      throw new ApiRequestError(body.error.code, body.error.message, response.status)
+    if (isApiError(parsed)) {
+      const { code, message, details } = parsed.error
+      throw new ApiRequestError(code, message, response.status, details ?? [])
     }
     throw new ApiRequestError(
       INVALID_RESPONSE,
@@ -62,5 +92,16 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
     )
   }
 
-  return body as T
+  return parsed as T
 }
+
+/** GET a JSON resource under /api. */
+export const apiGet = <T>(path: string, signal?: AbortSignal) =>
+  apiRequest<T>("GET", path, { signal })
+
+/** POST JSON to a resource under /api. */
+export const apiPost = <T>(path: string, body: unknown) => apiRequest<T>("POST", path, { body })
+
+/** PUT JSON to a resource under /api. */
+export const apiPut = <T>(path: string, body: unknown, options: { keepalive?: boolean } = {}) =>
+  apiRequest<T>("PUT", path, { body, ...options })

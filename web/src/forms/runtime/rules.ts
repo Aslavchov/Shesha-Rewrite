@@ -116,7 +116,8 @@ export const requiredChecked: Rule<boolean, { required: boolean }> = {
 }
 
 /** Length as people count it: by character, not by UTF-16 unit. */
-const lengthOf = (value: string) => Array.from(value).length
+/** The length of text in characters, as the length rules count it. */
+export const lengthOf = (value: string) => Array.from(value).length
 
 const characters = (count: number) => (count === 1 ? "1 character" : `${count} characters`)
 

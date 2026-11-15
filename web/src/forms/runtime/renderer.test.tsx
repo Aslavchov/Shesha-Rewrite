@@ -1,7 +1,8 @@
-import { screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { BoxIcon, BugIcon, RotateCcwIcon, ScanEyeIcon } from "lucide-react"
 import { describe, expect, it } from "vitest"
 
+import type { ComponentInstance } from "@/generated"
 import { expectConsoleProblems } from "@/test/console"
 
 import { textField } from "../components/text-field"
@@ -21,6 +22,8 @@ import {
   defineContainer,
   defineInput,
   defineStatic,
+  type DesignSurface,
+  FormRenderer,
   type InputEditProps,
   type InputReadOnlyProps,
   type StaticProps,
@@ -574,5 +577,110 @@ describe("registry and definitions", () => {
         Render: () => null,
       }),
     ).toThrow(/root/)
+  })
+})
+
+// --- Design mode (ADR 0008) ---------------------------------------------------
+
+describe("design mode", () => {
+  /** A surface that marks what it is given, so the tests can see it. */
+  const surface: DesignSurface = {
+    Instance: ({ instance: placed, definition, children }) => (
+      <div
+        data-testid={`wrap-${placed.name}`}
+        data-type={definition?.type ?? "none"}
+        data-kind={definition?.kind ?? "none"}
+      >
+        {children}
+      </div>
+    ),
+    Region: ({ parent, name, isEmpty, children }) => (
+      <>
+        {children}
+        {isEmpty ? <span data-testid={`empty-${parent?.name ?? "form"}-${name}`} /> : null}
+      </>
+    ),
+  }
+
+  function renderDesign(components: ComponentInstance[]) {
+    const registry = createRegistry([box, textField, resetProbe])
+    return render(
+      <FormRenderer
+        document={formDocument(components)}
+        registry={registry}
+        mode="edit"
+        design={surface}
+      />,
+    )
+  }
+
+  it("renders the real components, each inside the surface's wrapper", () => {
+    renderDesign([
+      instance("text-field", "first", { label: "First name" }),
+      instance(
+        "box",
+        "group",
+        {},
+        { bind: null, regions: { content: [instance("text-field", "inner")] } },
+      ),
+    ])
+
+    expect(screen.getByTestId("wrap-first")).toContainElement(fieldRoot("first"))
+    expect(screen.getByTestId("wrap-first")).toHaveAttribute("data-kind", "input")
+    expect(screen.getByRole("textbox", { name: "First name" })).toBeInTheDocument()
+    // Nested instances are wrapped too, inside their container's wrapper.
+    expect(screen.getByTestId("wrap-group")).toHaveAttribute("data-kind", "container")
+    expect(screen.getByTestId("wrap-group")).toContainElement(screen.getByTestId("wrap-inner"))
+    expect(fieldRoot("group")).toContainElement(screen.getByTestId("wrap-inner"))
+  })
+
+  it("is not a form that can be submitted", () => {
+    const { container } = renderDesign([instance("reset-probe", "go", {}, { bind: null })])
+
+    expect(container.querySelector("form")).toBeNull()
+    expect(screen.getByTestId("form")).toHaveAttribute("data-mode", "design")
+  })
+
+  it("hands every region to the surface, saying when it is empty", () => {
+    renderDesign([
+      instance(
+        "box",
+        "full",
+        {},
+        { bind: null, regions: { content: [instance("text-field", "a")] } },
+      ),
+      instance("box", "hollow", {}, { bind: null }),
+    ])
+
+    expect(screen.getByTestId("empty-hollow-content")).toBeInTheDocument()
+    expect(screen.queryByTestId("empty-full-content")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("empty-form-components")).not.toBeInTheDocument()
+    // The drop target is inside the element the component lays its children out in.
+    expect(fieldRoot("hollow")).toContainElement(screen.getByTestId("empty-hollow-content"))
+  })
+
+  it("says the form's own list is empty when the form has no components", () => {
+    renderDesign([])
+    expect(screen.getByTestId("form")).toContainElement(screen.getByTestId("empty-form-components"))
+  })
+
+  it("wraps the placeholders of unknown and misconfigured instances too", () => {
+    renderDesign([
+      instance("hologram", "ghost", {}, { bind: null }),
+      instance("text-field", "unbound", {}, { bind: null }),
+    ])
+
+    const ghost = screen.getByTestId("wrap-ghost")
+    expect(ghost).toHaveAttribute("data-type", "none")
+    expect(ghost).toContainElement(screen.getByTestId("component-unknown"))
+    const unbound = screen.getByTestId("wrap-unbound")
+    expect(unbound).toHaveAttribute("data-type", "text-field")
+    expect(unbound).toContainElement(screen.getByTestId("component-error"))
+  })
+
+  it("leaves the form untouched when no surface is given", () => {
+    renderForm([instance("box", "hollow", {}, { bind: null })], [box])
+    expect(screen.queryByTestId("wrap-hollow")).not.toBeInTheDocument()
+    expect(screen.getByTestId("form").tagName).toBe("FORM")
   })
 })

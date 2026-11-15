@@ -52,5 +52,24 @@ fn form_format_version_is_exported_from_the_rust_constant() {
         contracts::FORM_FORMAT_VERSION
     );
     assert!(files["form.ts"].contains(&expected));
-    assert!(files["index.ts"].contains("export { FORM_FORMAT_VERSION } from \"./form\";"));
+    assert!(files["index.ts"].contains(
+        "export { FORM_FORMAT_VERSION, MAX_JSON_DEPTH, MAX_REQUEST_BYTES } from \"./form\";"
+    ));
+}
+
+#[test]
+fn the_request_limits_are_exported_from_the_rust_constants() {
+    let files = codegen::render();
+    for expected in [
+        format!(
+            "export const MAX_JSON_DEPTH = {};",
+            contracts::MAX_JSON_DEPTH
+        ),
+        format!(
+            "export const MAX_REQUEST_BYTES = {};",
+            contracts::MAX_REQUEST_BYTES
+        ),
+    ] {
+        assert!(files["form.ts"].contains(&expected), "{expected}");
+    }
 }

@@ -1,0 +1,1796 @@
+{
+  "about": "Form documents and the paths of the problems the server reports for each (crates/server/src/forms/validate.rs). The server's tests and the designer's tests both run every case, so the designer's copy of the rules (web/src/designer/model/rules.ts) cannot drift from the server's.",
+  "cases": [
+    {
+      "name": "an empty form",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": []
+      },
+      "problems": []
+    },
+    {
+      "name": "a description and form settings",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "description": "About",
+        "settings": {
+          "gap": "lg"
+        }
+      },
+      "problems": []
+    },
+    {
+      "name": "an input with a nested data path",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "first",
+            "bind": "person.first"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "an input without a data path",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "first"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "a data path of null counts as none",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": null
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "ids may use letters, digits, _ and -",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "A-z_09",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "names may use $ and _",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "$a_1",
+            "bind": "$a_1"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "_",
+            "bind": "_"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "an unknown component type is the client's to judge",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "x9-future",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "nesting, settings and styles",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "columns",
+            "name": "row",
+            "settings": {
+              "columns": 3,
+              "anything": [
+                1,
+                {
+                  "a": null
+                }
+              ]
+            },
+            "regions": {
+              "col1": [
+                {
+                  "id": "c_2",
+                  "type": "container",
+                  "name": "box",
+                  "regions": {
+                    "content": [
+                      {
+                        "id": "c_3",
+                        "type": "text-field",
+                        "name": "first",
+                        "bind": "person.first"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "col2": [
+                {
+                  "id": "c_4",
+                  "type": "text-field",
+                  "name": "second",
+                  "bind": "person.second",
+                  "styles": {
+                    "label": {
+                      "color": "#003BB2",
+                      "fontWeight": "semibold"
+                    },
+                    "control": {
+                      "background": {
+                        "token": "muted"
+                      },
+                      "borderColor": "#00112233",
+                      "radius": "2xl",
+                      "padding": "sm"
+                    }
+                  }
+                }
+              ],
+              "col9": []
+            }
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "style values of null count as not set",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": null,
+                "radius": null,
+                "fontWeight": null,
+                "padding": null
+              }
+            }
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "a name of exactly 200 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "components": []
+      },
+      "problems": []
+    },
+    {
+      "name": "a name is counted in characters, not bytes",
+      "document": {
+        "formatVersion": 1,
+        "name": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "components": []
+      },
+      "problems": []
+    },
+    {
+      "name": "a description of exactly 1000 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "description": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "problems": []
+    },
+    {
+      "name": "an id, a name and a type of exactly 64 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+            "type": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+            "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "a data path of exactly 255 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "data paths that only share a prefix of letters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "contact"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "b",
+            "bind": "contactMethod"
+          },
+          {
+            "id": "c_3",
+            "type": "text-field",
+            "name": "c",
+            "bind": "person.a"
+          },
+          {
+            "id": "c_4",
+            "type": "text-field",
+            "name": "d",
+            "bind": "person.b"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "not an object",
+      "document": [
+        1,
+        2
+      ],
+      "problems": [
+        ""
+      ]
+    },
+    {
+      "name": "no format version",
+      "document": {
+        "name": "x",
+        "components": []
+      },
+      "problems": [
+        "formatVersion"
+      ]
+    },
+    {
+      "name": "a format version that is text",
+      "document": {
+        "formatVersion": "1",
+        "name": "x",
+        "components": []
+      },
+      "problems": [
+        "formatVersion"
+      ]
+    },
+    {
+      "name": "a newer format version",
+      "document": {
+        "formatVersion": 2,
+        "title": "x",
+        "tree": {}
+      },
+      "problems": [
+        "formatVersion"
+      ]
+    },
+    {
+      "name": "format version zero",
+      "document": {
+        "formatVersion": 0,
+        "name": "x",
+        "components": []
+      },
+      "problems": [
+        "formatVersion"
+      ]
+    },
+    {
+      "name": "a negative format version",
+      "document": {
+        "formatVersion": -1,
+        "name": "x",
+        "components": []
+      },
+      "problems": [
+        "formatVersion"
+      ]
+    },
+    {
+      "name": "no name",
+      "document": {
+        "formatVersion": 1,
+        "components": []
+      },
+      "problems": [
+        ""
+      ]
+    },
+    {
+      "name": "no components",
+      "document": {
+        "formatVersion": 1,
+        "name": "x"
+      },
+      "problems": [
+        ""
+      ]
+    },
+    {
+      "name": "a name that is not text",
+      "document": {
+        "formatVersion": 1,
+        "name": 5,
+        "components": []
+      },
+      "problems": [
+        "name"
+      ]
+    },
+    {
+      "name": "an empty name",
+      "document": {
+        "formatVersion": 1,
+        "name": "",
+        "components": []
+      },
+      "problems": [
+        "name"
+      ]
+    },
+    {
+      "name": "a name of spaces",
+      "document": {
+        "formatVersion": 1,
+        "name": "   ",
+        "components": []
+      },
+      "problems": [
+        "name"
+      ]
+    },
+    {
+      "name": "a name of 201 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "components": []
+      },
+      "problems": [
+        "name"
+      ]
+    },
+    {
+      "name": "a description of 1001 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "description": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "problems": [
+        "description"
+      ]
+    },
+    {
+      "name": "a description of null",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "description": null
+      },
+      "problems": [
+        "description"
+      ]
+    },
+    {
+      "name": "settings that are not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "settings": [
+          1
+        ]
+      },
+      "problems": [
+        "settings"
+      ]
+    },
+    {
+      "name": "components that are not a list",
+      "document": {
+        "formatVersion": 1,
+        "name": "x",
+        "components": {}
+      },
+      "problems": [
+        "components"
+      ]
+    },
+    {
+      "name": "an unknown key on the form",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [],
+        "theme": "dark"
+      },
+      "problems": [
+        "theme"
+      ]
+    },
+    {
+      "name": "an instance that is not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          "text-field"
+        ]
+      },
+      "problems": [
+        "components[0]"
+      ]
+    },
+    {
+      "name": "an instance without a name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field"
+          }
+        ]
+      },
+      "problems": [
+        "components[0]"
+      ]
+    },
+    {
+      "name": "an instance without an id",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0]"
+      ]
+    },
+    {
+      "name": "an instance without a type",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0]"
+      ]
+    },
+    {
+      "name": "an unknown key on an instance",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "t",
+            "name": "a",
+            "margin": 4
+          }
+        ]
+      },
+      "problems": [
+        "components[0].margin"
+      ]
+    },
+    {
+      "name": "an id that is not text",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": 7,
+            "type": "t",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "a data path that is not text",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "t",
+            "name": "a",
+            "bind": 7
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "instance settings that are not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "t",
+            "name": "a",
+            "settings": "x"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].settings"
+      ]
+    },
+    {
+      "name": "an empty id",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "",
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "an id of 65 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "an id with a space",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c 1",
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "an id with a dot",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c.1",
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "an id with a letter outside ASCII",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_é",
+            "type": "text-field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].id"
+      ]
+    },
+    {
+      "name": "two instances with one id, at different depths",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "content": [
+                {
+                  "id": "c_2",
+                  "type": "text-field",
+                  "name": "a"
+                },
+                {
+                  "id": "c_1",
+                  "type": "text-field",
+                  "name": "b"
+                }
+              ]
+            }
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "c"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions.content[1].id",
+        "components[1].id"
+      ]
+    },
+    {
+      "name": "a type with a capital",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "TextField",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].type"
+      ]
+    },
+    {
+      "name": "a type starting with a digit",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "9lives",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].type"
+      ]
+    },
+    {
+      "name": "a type with an underscore",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text_field",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].type"
+      ]
+    },
+    {
+      "name": "an empty type",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].type"
+      ]
+    },
+    {
+      "name": "a type of 65 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+            "name": "a"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].type"
+      ]
+    },
+    {
+      "name": "a name with a space",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "first name"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].name"
+      ]
+    },
+    {
+      "name": "a name starting with a digit",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "1st"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].name"
+      ]
+    },
+    {
+      "name": "an empty name on an instance",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": ""
+          }
+        ]
+      },
+      "problems": [
+        "components[0].name"
+      ]
+    },
+    {
+      "name": "a name with a hyphen",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "first-name"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].name"
+      ]
+    },
+    {
+      "name": "a name of 65 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].name"
+      ]
+    },
+    {
+      "name": "two instances with one name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a"
+          },
+          {
+            "id": "c_2",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "content": [
+                {
+                  "id": "c_3",
+                  "type": "text-field",
+                  "name": "a"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[1].regions.content[0].name"
+      ]
+    },
+    {
+      "name": "names differ by case",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "A"
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "an empty data path",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": ""
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "a data path with an empty segment",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a..b"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "a data path ending in a dot",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a."
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "a data path with a segment that is not a name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a.1b"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "a data path with an index",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a[0]"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "a data path of 256 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssx"
+          }
+        ]
+      },
+      "problems": [
+        "components[0].bind"
+      ]
+    },
+    {
+      "name": "two instances with one data path",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "x.y"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "b",
+            "bind": "x.y"
+          }
+        ]
+      },
+      "problems": [
+        "components[1].bind"
+      ]
+    },
+    {
+      "name": "a data path inside another",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "contact"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "b",
+            "bind": "contact.method"
+          }
+        ]
+      },
+      "problems": [
+        "components[1].bind"
+      ]
+    },
+    {
+      "name": "a data path around another",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "contact.method"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "b",
+            "bind": "contact"
+          }
+        ]
+      },
+      "problems": [
+        "components[1].bind"
+      ]
+    },
+    {
+      "name": "a refused data path does not block a later one",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "x"
+          },
+          {
+            "id": "c_2",
+            "type": "text-field",
+            "name": "b",
+            "bind": "x"
+          },
+          {
+            "id": "c_3",
+            "type": "text-field",
+            "name": "c",
+            "bind": "x"
+          }
+        ]
+      },
+      "problems": [
+        "components[1].bind",
+        "components[2].bind"
+      ]
+    },
+    {
+      "name": "styles that are not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": []
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles"
+      ]
+    },
+    {
+      "name": "a slot's styles that are not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": "blue"
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label"
+      ]
+    },
+    {
+      "name": "a style property that does not exist",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "margin": "md"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.margin"
+      ]
+    },
+    {
+      "name": "a radius that is not on the scale",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "radius": "huge"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.radius"
+      ]
+    },
+    {
+      "name": "a padding that is a number",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "padding": 12
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.padding"
+      ]
+    },
+    {
+      "name": "a font weight that is not on the scale",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "fontWeight": "bold"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.fontWeight"
+      ]
+    },
+    {
+      "name": "a colour that is a number",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": 3
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "a token reference with an extra key",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": {
+                  "token": "primary",
+                  "alpha": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "a token reference whose name is not text",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": {
+                  "token": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "colours that are not hex or a token name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": "red",
+                "background": "#12345",
+                "borderColor": {
+                  "token": "Primary Blue"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color",
+        "components[0].styles.label.background",
+        "components[0].styles.label.borderColor"
+      ]
+    },
+    {
+      "name": "a hex colour of three digits",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": "#abc"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "a hex colour with a bad digit",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": "#00112g"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "a token name with a capital",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": {
+                  "token": "Primary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "an empty token name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": {
+                  "token": ""
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.label.color"
+      ]
+    },
+    {
+      "name": "a token name this build does not have is the client's to judge",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "label": {
+                "color": {
+                  "token": "brand-2"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "a slot name with a dot",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "la.bel": {
+                "color": "#000000"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.la.bel"
+      ]
+    },
+    {
+      "name": "a slot name starting with a digit",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "1st": {}
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.1st"
+      ]
+    },
+    {
+      "name": "a slot name of 65 characters",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss": {}
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].styles.sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      ]
+    },
+    {
+      "name": "a slot this component does not have is the client's to judge",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "text-field",
+            "name": "a",
+            "bind": "a",
+            "styles": {
+              "footer": {
+                "color": "#000000"
+              }
+            }
+          }
+        ]
+      },
+      "problems": []
+    },
+    {
+      "name": "regions that are not an object",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": []
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions"
+      ]
+    },
+    {
+      "name": "a region that is not a list",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "content": {}
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions.content"
+      ]
+    },
+    {
+      "name": "a region name with a space",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "my region": []
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions.my region"
+      ]
+    },
+    {
+      "name": "a region name starting with a digit",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "1": []
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions.1"
+      ]
+    },
+    {
+      "name": "an empty region name",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "": []
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions."
+      ]
+    },
+    {
+      "name": "a problem deep inside regions names its path",
+      "document": {
+        "formatVersion": 1,
+        "name": "Test",
+        "components": [
+          {
+            "id": "c_1",
+            "type": "container",
+            "name": "box",
+            "regions": {
+              "content": [
+                {
+                  "id": "c_2",
+                  "type": "columns",
+                  "name": "row",
+                  "regions": {
+                    "col2": [
+                      {
+                        "id": "c_3",
+                        "type": "text-field",
+                        "name": "a"
+                      },
+                      {
+                        "id": "c_4",
+                        "type": "text-field",
+                        "name": "bad name"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "problems": [
+        "components[0].regions.content[0].regions.col2[1].name"
+      ]
+    },
+    {
+      "name": "several problems are all reported",
+      "document": {
+        "formatVersion": 1,
+        "name": " ",
+        "components": [
+          {
+            "id": "c 1",
+            "type": "text-field",
+            "name": "1st",
+            "bind": "a..b"
+          },
+          {
+            "id": "c_2",
+            "type": "Bad",
+            "name": "ok",
+            "styles": {
+              "label": {
+                "color": "red"
+              }
+            }
+          }
+        ]
+      },
+      "problems": [
+        "name",
+        "components[0].id",
+        "components[0].name",
+        "components[0].bind",
+        "components[1].type",
+        "components[1].styles.label.color"
+      ]
+    }
+  ]
+}

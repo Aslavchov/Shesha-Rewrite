@@ -39,15 +39,18 @@ export const FORMS_PAGE: AppPage = {
 
 export const formPath = (id: string) => `${FORMS_PAGE.path}/${encodeURIComponent(id)}`
 
+/** Built in Phase 2. Lists the forms; each opens in the designer at `designerPath(id)`. */
+export const DESIGNER_PAGE: AppPage = {
+  id: "designer",
+  path: "/designer",
+  title: "Designer",
+  icon: PencilRulerIcon,
+}
+
+export const designerPath = (id: string) => `${DESIGNER_PAGE.path}/${encodeURIComponent(id)}`
+
 /* When each page arrives follows docs/roadmap.md; keep the two in step. */
 export const UPCOMING_PAGES: AppPage[] = [
-  {
-    id: "designer",
-    path: "/designer",
-    title: "Designer",
-    icon: PencilRulerIcon,
-    upcoming: { summary: "The drag-and-drop canvas where forms are built.", arrives: 2 },
-  },
   {
     id: "entities",
     path: "/entities",
@@ -75,7 +78,7 @@ export const UPCOMING_PAGES: AppPage[] = [
 ]
 
 /** Sidebar order. */
-export const NAV_PAGES: AppPage[] = [HOME_PAGE, FORMS_PAGE, ...UPCOMING_PAGES]
+export const NAV_PAGES: AppPage[] = [HOME_PAGE, FORMS_PAGE, DESIGNER_PAGE, ...UPCOMING_PAGES]
 
 /** The closing sentence of an empty state: when the page arrives. */
 export function arrivalText(arrives: number | "after-v1"): string {

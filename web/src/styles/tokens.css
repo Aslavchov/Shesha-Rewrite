@@ -265,5 +265,8 @@
   --sys-size-sidebar-mobile: 18rem;
   --sys-size-header: 3.5rem;
   --sys-size-content: 64rem;
+  /* The designer: its toolbox on the left, and the outline and properties on the right. */
+  --sys-size-designer-toolbox: 15rem;
+  --sys-size-designer-panel: 17rem;
   --sys-scrim-blur: 4px;
 }

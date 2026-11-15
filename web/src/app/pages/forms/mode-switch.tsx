@@ -1,15 +1,14 @@
 import { EyeIcon, PencilIcon } from "lucide-react"
-import { cn } from "cn"
 
-import { Button } from "@/components/ui/button"
+import { SegmentedSwitch } from "@/components/segmented-switch"
 import type { FormMode } from "@/forms/runtime"
 
 const MODES = [
-  { mode: "edit", label: "Edit", icon: PencilIcon },
-  { mode: "read-only", label: "Read-only", icon: EyeIcon },
+  { value: "edit", label: "Edit", icon: PencilIcon, testId: "form-mode-edit" },
+  { value: "read-only", label: "Read-only", icon: EyeIcon, testId: "form-mode-read-only" },
 ] as const
 
-/** Switches the form between edit and read-only. Two toggle buttons; one is always pressed. */
+/** Switches the form between edit and read-only. */
 export function ModeSwitch({
   mode,
   onChange,
@@ -17,31 +16,5 @@ export function ModeSwitch({
   mode: FormMode
   onChange: (mode: FormMode) => void
 }) {
-  return (
-    <fieldset
-      aria-label="Form mode"
-      className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5"
-    >
-      {MODES.map((option) => {
-        const isCurrent = option.mode === mode
-        return (
-          <Button
-            key={option.mode}
-            variant="ghost"
-            size="sm"
-            data-testid={`form-mode-${option.mode}`}
-            aria-pressed={isCurrent}
-            className={cn(
-              "text-muted-foreground hover:bg-transparent",
-              isCurrent && "bg-background text-foreground shadow-xs hover:bg-background",
-            )}
-            onClick={() => onChange(option.mode)}
-          >
-            <option.icon aria-hidden="true" data-icon="inline-start" />
-            {option.label}
-          </Button>
-        )
-      })}
-    </fieldset>
-  )
+  return <SegmentedSwitch label="Form mode" options={MODES} value={mode} onChange={onChange} />
 }

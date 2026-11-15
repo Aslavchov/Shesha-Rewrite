@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Smoke-test a release binary on the machine that built it: start it, check
 // that the API and the embedded frontend answer, and stop it. CI runs this on
-// Linux, Windows and macOS; the full end-to-end suite runs on Linux only.
+// every binary it builds: Linux always, Windows and macOS when the workflow is
+// started by hand. The full end-to-end suite runs on Linux only.
 //
 //   node scripts/smoke.mjs [--binary <path>]
 import { spawn } from "node:child_process"

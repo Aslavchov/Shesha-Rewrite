@@ -68,7 +68,7 @@ test.describe("C0-2 Shell loads clean", () => {
 })
 
 test.describe("C0-3 Navigation", () => {
-  test("each item changes the URL, the page title and the header title", async ({ page }) => {
+  test("each item changes the URL and the page title", async ({ page }) => {
     await page.goto("/")
 
     for (const item of [...NAV.slice(1), NAV[0]]) {
@@ -76,8 +76,22 @@ test.describe("C0-3 Navigation", () => {
 
       await expect(page).toHaveURL(item.path)
       await expect(page.getByTestId("page-title")).toHaveText(item.title)
-      await expect(page.getByTestId("header-title")).toHaveText(item.title)
+      await expect(page).toHaveTitle(new RegExp(`^${item.title} · `))
       await expect(page.getByTestId(`nav-${item.id}`)).toHaveAttribute("aria-current", "page")
+    }
+  })
+
+  // Phase 2, section 4: the header used to repeat the title under it.
+  test("each page shows its title once: as its heading, not in the header as well", async ({
+    page,
+  }) => {
+    for (const item of NAV) {
+      await page.goto(item.path)
+
+      await expect(page.getByTestId("page-title")).toHaveText(item.title)
+      await expect(page.getByTestId("header-title")).toHaveCount(0)
+      await expect(page.locator("header").getByText(item.title, { exact: true })).toHaveCount(0)
+      await expect(page.locator("main").getByText(item.title, { exact: true })).toHaveCount(1)
     }
   })
 

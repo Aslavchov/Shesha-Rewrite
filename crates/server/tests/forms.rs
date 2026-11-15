@@ -7,7 +7,7 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
 use axum::response::Response;
-use contracts::{ApiError, FormList, FormRecord};
+use contracts::{ApiError, FormList, FormRecord, MAX_JSON_DEPTH, MAX_REQUEST_BYTES};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use server::assets::AssetSource;
@@ -391,6 +391,104 @@ async fn a_body_over_the_size_limit_is_413_in_the_error_shape() {
     let response = send_raw(&state, Method::POST, "/api/forms", Body::from(huge)).await;
 
     error(response, StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large").await;
+}
+
+/// A create request padded with trailing spaces to exactly `bytes` long.
+fn padded_request(bytes: usize) -> String {
+    let mut body = json!({ "document": document("Padded") }).to_string();
+    assert!(body.len() <= bytes);
+    body.push_str(&" ".repeat(bytes - body.len()));
+    body
+}
+
+// The designer refuses a change that would make a request the server would
+// refuse, so it relies on these two numbers being the server's real limits.
+
+#[tokio::test]
+async fn a_body_of_exactly_the_shared_size_limit_is_read_and_one_byte_more_is_not() {
+    let (state, _dir) = app(false).await;
+    let limit = MAX_REQUEST_BYTES as usize;
+
+    let at_limit = Body::from(padded_request(limit));
+    let response = send_raw(&state, Method::POST, "/api/forms", at_limit).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let over = Body::from(padded_request(limit + 1));
+    let response = send_raw(&state, Method::POST, "/api/forms", over).await;
+    error(response, StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large").await;
+}
+
+/// A request body whose JSON nests exactly `depth` levels, counting the body
+/// itself as level 1: containers inside one another, and in the innermost
+/// one's settings enough empty lists to make up the rest.
+fn nested_request(depth: u32, revision: Option<u32>) -> Value {
+    // The body is level 1, the document 2, its components 3 and a top-level
+    // instance 4. Each container around an instance adds its regions, a
+    // region and the instance: 3 levels. The innermost instance's settings
+    // are one level below it.
+    let containers = (depth - 5) / 3;
+    let padding = (depth - 5) % 3;
+    let mut filler = json!(true);
+    for _ in 0..padding {
+        filler = json!([filler]);
+    }
+    let mut instance = json!({
+        "id": "c_0", "type": "container", "name": "box0", "settings": { "filler": filler }
+    });
+    for level in 1..=containers {
+        instance = json!({
+            "id": format!("c_{level}"), "type": "container", "name": format!("box{level}"),
+            "regions": { "content": [instance] }
+        });
+    }
+    let document = json!({ "formatVersion": 1, "name": "Deep", "components": [instance] });
+    match revision {
+        Some(revision) => json!({ "revision": revision, "document": document }),
+        None => json!({ "document": document }),
+    }
+}
+
+/// How deep a JSON value nests: a scalar is 0, `[]` and `{}` are 1.
+fn json_depth(value: &Value) -> u32 {
+    match value {
+        Value::Array(items) => 1 + items.iter().map(json_depth).max().unwrap_or(0),
+        Value::Object(members) => 1 + members.values().map(json_depth).max().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+#[tokio::test]
+async fn json_nested_to_exactly_the_shared_depth_limit_is_read_and_one_level_more_is_not() {
+    let (state, _dir) = app(false).await;
+
+    for depth in [MAX_JSON_DEPTH - 2, MAX_JSON_DEPTH - 1, MAX_JSON_DEPTH] {
+        let body = nested_request(depth, None);
+        assert_eq!(json_depth(&body), depth);
+        let created = record(
+            send(&state, Method::POST, "/api/forms", Some(&body)).await,
+            StatusCode::CREATED,
+        )
+        .await;
+
+        // An update nests exactly as deep as a create, and so does a read.
+        let update = nested_request(depth, Some(created.revision));
+        assert_eq!(json_depth(&update), depth);
+        let uri = format!("/api/forms/{}", created.id);
+        let response = send(&state, Method::PUT, &uri, Some(&update)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = send(&state, Method::GET, &uri, None).await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    let too_deep = nested_request(MAX_JSON_DEPTH + 1, None);
+    assert_eq!(json_depth(&too_deep), MAX_JSON_DEPTH + 1);
+    let response = send(&state, Method::POST, "/api/forms", Some(&too_deep)).await;
+    let error = error(response, StatusCode::BAD_REQUEST, "invalid_request").await;
+    assert!(
+        error.error.message.contains("recursion limit"),
+        "{}",
+        error.error.message
+    );
 }
 
 #[tokio::test]

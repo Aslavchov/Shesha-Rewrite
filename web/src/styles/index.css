@@ -60,4 +60,13 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  /*
+   * While something is being dragged in the designer, the cursor says so
+   * wherever it is, and the drag selects no text on its way.
+   */
+  html[data-dragging] * {
+    cursor: grabbing;
+    user-select: none;
+  }
 }

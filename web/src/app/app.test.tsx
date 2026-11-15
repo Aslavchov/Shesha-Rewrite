@@ -61,7 +61,7 @@ describe("app shell", () => {
     expect(skipLink).toHaveAttribute("href", `#${main.id}`)
   })
 
-  it.each(NAV_PAGES)("renders $path with one h1 and a matching header title", (page) => {
+  it.each(NAV_PAGES)("renders $path with its title once, as the page's one h1", (page) => {
     stubInfo(infoOk)
     renderAt(page.path)
 
@@ -69,12 +69,14 @@ describe("app shell", () => {
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent(page.title)
     expect(screen.getByTestId("page-title")).toBe(headings[0])
-    expect(screen.getByTestId("header-title")).toHaveTextContent(page.title)
+    expect(screen.getByRole("main")).toContainElement(headings[0])
+    // The header does not repeat it.
+    expect(screen.queryByTestId("header-title")).not.toBeInTheDocument()
+    expect(within(screen.getByRole("banner")).queryByText(page.title)).not.toBeInTheDocument()
     expect(screen.getByTestId(`nav-${page.id}`)).toHaveAttribute("aria-current", "page")
   })
 
   it.each([
-    ["designer", "Arrives in Phase 2."],
     ["entities", "Arrives in Phase 5."],
     ["themes", "Arrives in Phase 4."],
     ["settings", "Arrives after v1."],
@@ -88,11 +90,11 @@ describe("app shell", () => {
     )
   })
 
-  it("Forms is a built page, not an upcoming one", async () => {
+  it.each(["/forms", "/designer"])("%s is a built page, not an upcoming one", async (path) => {
     stubInfo(infoOk)
-    renderAt("/forms")
+    renderAt(path)
 
-    expect(UPCOMING_PAGES.map((page) => page.id)).not.toContain("forms")
+    expect(UPCOMING_PAGES.map((page) => page.path)).not.toContain(path)
     expect(await screen.findByTestId("forms-empty")).toBeInTheDocument()
     expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument()
   })

@@ -817,7 +817,9 @@ test.describe("C1-12 Keyboard only", () => {
 })
 
 test.describe("C1-18 Unknown id", () => {
-  test("shows a not-found state with a link back to Forms", async ({ page }) => {
+  test("shows a not-found state with a link back to Forms", async ({ page, expectRefusal }) => {
+    // The form's 404 is the point of this check.
+    expectRefusal(404)
     const response = await page.goto("/forms/does-not-exist")
 
     // The page itself loads; the form is what does not exist.

@@ -1,6 +1,7 @@
 /** What a component folder imports to define itself (ADR 0004). */
 export type { FieldApi, FormActions } from "./context"
 export {
+  type ComponentCategory,
   type ComponentDefinition,
   type ContainerProps,
   createRegistry,
@@ -14,6 +15,7 @@ export {
   type Registry,
   type StaticProps,
 } from "./definition"
+export type { DesignInstanceProps, DesignRegionProps, DesignSurface } from "./design"
 export { GAP_CLASS } from "./layout"
 export { FormRenderer, type FormRendererProps } from "./renderer"
 export type { SlotProps, Slots } from "./styles"

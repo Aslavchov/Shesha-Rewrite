@@ -6,6 +6,7 @@ import { FORM_FORMAT_VERSION, type FormDocument } from "@/generated"
 
 import { controlId, FormContext, type FormContextValue } from "./context"
 import type { FormMode, Registry } from "./definition"
+import type { DesignSurface } from "./design"
 import { GAP_CLASS } from "./layout"
 import { buildModel, type FormModel, type FormNode } from "./model"
 import { ComponentBoundary, ComponentError, UnknownComponent } from "./placeholders"
@@ -21,7 +22,16 @@ export type FormRendererProps = {
   onSubmit?: (values: NestedValues) => void
   /** Called after the form was reset to its defaults. */
   onReset?: () => void
+  /**
+   * Given by the designer: the form is being designed, not filled in. The
+   * components render as in edit mode, each instance and region wrapped by
+   * the surface, and the form cannot be submitted (ADR 0008).
+   */
+  design?: DesignSurface
 }
+
+/** The name the form's own top-level list goes by where a region needs one. */
+const ROOT_REGION = "components"
 
 /**
  * Renders a form document in edit or read-only mode (spec section 6).
@@ -50,7 +60,14 @@ function prepare(form: FormDocument, registry: Registry): Prepared {
   return { form, registry, model, store: new FormStore(model.fields) }
 }
 
-function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRendererProps) {
+function KnownForm({
+  document: form,
+  registry,
+  mode,
+  onSubmit,
+  onReset,
+  design,
+}: FormRendererProps) {
   const uid = React.useId()
 
   // State, not a memo: the store holds what a person has typed, so it must
@@ -106,6 +123,20 @@ function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRe
   }, [store])
 
   const className = cn("flex flex-col", GAP_CLASS[model.gap])
+
+  if (design) {
+    // Not a <form>: a form being designed has nothing to submit.
+    return (
+      <FormContext value={context}>
+        <div data-testid="form" data-mode="design" className={className}>
+          <design.Region parent={null} name={ROOT_REGION} isEmpty={model.nodes.length === 0}>
+            <NodeList nodes={model.nodes} mode="edit" design={design} />
+          </design.Region>
+        </div>
+      </FormContext>
+    )
+  }
+
   const content = <NodeList nodes={model.nodes} mode={mode} />
 
   return (
@@ -134,23 +165,51 @@ function KnownForm({ document: form, registry, mode, onSubmit, onReset }: FormRe
   )
 }
 
-function NodeList({ nodes, mode }: { nodes: readonly FormNode[]; mode: FormMode }) {
-  return nodes.map((node) => <NodeView key={node.instance.id} node={node} mode={mode} />)
+type NodeProps = { mode: FormMode; design?: DesignSurface }
+
+function NodeList({ nodes, mode, design }: NodeProps & { nodes: readonly FormNode[] }) {
+  return nodes.map((node) => (
+    <NodeView key={node.instance.id} node={node} mode={mode} design={design} />
+  ))
 }
 
-const NodeView = React.memo(function NodeView({ node, mode }: { node: FormNode; mode: FormMode }) {
+const NodeView = React.memo(function NodeView({
+  node,
+  mode,
+  design,
+}: NodeProps & { node: FormNode }) {
+  const rendered = renderNode(node, mode, design)
+  if (!design) return rendered
+  return (
+    <design.Instance
+      instance={node.instance}
+      definition={node.kind === "unknown" ? null : node.definition}
+    >
+      {rendered}
+    </design.Instance>
+  )
+})
+
+function renderNode(node: FormNode, mode: FormMode, design: DesignSurface | undefined) {
   if (node.kind === "unknown") return <UnknownComponent instance={node.instance} />
   if (node.kind === "broken") {
     return <ComponentError instance={node.instance}>{node.message}</ComponentError>
   }
   return (
     <ComponentBoundary instance={node.instance}>
-      {node.prepared.render(mode, (name) => (
-        <NodeList nodes={node.regions.get(name) ?? []} mode={mode} />
-      ))}
+      {node.prepared.render(mode, (name) => {
+        const children = node.regions.get(name) ?? []
+        const list = <NodeList nodes={children} mode={mode} design={design} />
+        if (!design) return list
+        return (
+          <design.Region parent={node.instance} name={name} isEmpty={children.length === 0}>
+            {list}
+          </design.Region>
+        )
+      })}
     </ComponentBoundary>
   )
-})
+}
 
 function UnsupportedVersion({ version }: { version: unknown }) {
   return (
