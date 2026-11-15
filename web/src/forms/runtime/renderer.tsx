@@ -4,7 +4,7 @@ import { FileWarningIcon } from "lucide-react"
 
 import { FORM_FORMAT_VERSION, type FormDocument } from "@/generated"
 
-import { controlId, FormContext, type FormContextValue } from "./context"
+import { controlId, FormContext, type FormContextValue, revealAndFocus } from "./context"
 import type { FormMode, Registry } from "./definition"
 import type { DesignSurface } from "./design"
 import { GAP_CLASS } from "./layout"
@@ -93,7 +93,7 @@ function KnownForm({
       if (result.valid) {
         handlers.current.onSubmit?.(result.values)
       } else {
-        window.document.getElementById(controlId(uid, result.firstInvalid))?.focus()
+        revealAndFocus(window.document.getElementById(controlId(uid, result.firstInvalid)))
       }
     }
     const reset = () => {
@@ -197,16 +197,20 @@ function renderNode(node: FormNode, mode: FormMode, design: DesignSurface | unde
   }
   return (
     <ComponentBoundary instance={node.instance}>
-      {node.prepared.render(mode, (name) => {
-        const children = node.regions.get(name) ?? []
-        const list = <NodeList nodes={children} mode={mode} design={design} />
-        if (!design) return list
-        return (
-          <design.Region parent={node.instance} name={name} isEmpty={children.length === 0}>
-            {list}
-          </design.Region>
-        )
-      })}
+      {node.prepared.render(
+        mode,
+        (name) => {
+          const children = node.regions.get(name) ?? []
+          const list = <NodeList nodes={children} mode={mode} design={design} />
+          if (!design) return list
+          return (
+            <design.Region parent={node.instance} name={name} isEmpty={children.length === 0}>
+              {list}
+            </design.Region>
+          )
+        },
+        design ? { shownRegion: design.shownRegion?.(node.instance.id) ?? null } : undefined,
+      )}
     </ComponentBoundary>
   )
 }

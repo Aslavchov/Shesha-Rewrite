@@ -27,6 +27,9 @@ export const COLOR_TOKENS = [
   "primary-hover",
   "primary-foreground",
   "destructive",
+  "success",
+  "warning",
+  "info",
   "border",
   "border-control",
   "focus-ring",
@@ -42,13 +45,28 @@ export const RADIUS_STEPS = ["none", "sm", "md", "lg", "xl", "2xl", "full"] as c
 export const FONT_WEIGHTS = ["normal", "medium", "semibold"] as const
 export const SPACE_STEPS = ["none", "xs", "sm", "md", "lg", "xl"] as const
 
-/** What a renderer spreads onto the element a slot names. */
-export type SlotProps = { readonly style?: React.CSSProperties }
+/** The attribute that names the slot an element is. The designer finds a slot by it. */
+export const SLOT_ATTRIBUTE = "data-form-slot"
+
+/**
+ * What a renderer spreads onto the element a slot names: the overrides, and
+ * the slot's name, so the designer can point at the part being styled
+ * (ADR 0009).
+ */
+export type SlotProps = {
+  readonly style?: React.CSSProperties
+  readonly [SLOT_ATTRIBUTE]?: string
+}
 
 /** The root slot also carries the instance's test id. */
 export type RootSlotProps = SlotProps & { readonly "data-testid": string }
 
-export type StyleProblem = { readonly slot: string; readonly message: string }
+export type StyleProblem = {
+  readonly slot: string
+  /** The property at fault, when the problem is one property's value. */
+  readonly property?: string
+  readonly message: string
+}
 
 const HEX_COLOUR = /^#(?:[0-9a-f]{6}|[0-9a-f]{8})$/i
 
@@ -98,13 +116,18 @@ export function slotStyle(
 
   for (const [key, value] of Object.entries(overrides)) {
     if (!isProperty(key)) {
-      problems.push({ slot, message: `"${key}" is not a style property; it is ignored.` })
+      problems.push({
+        slot,
+        property: key,
+        message: `"${key}" is not a style property; it is ignored.`,
+      })
       continue
     }
     const css = PROPERTIES[key].read(value)
     if (css === null) {
       problems.push({
         slot,
+        property: key,
         message: `${JSON.stringify(value)} is not a valid ${key}; it is ignored.`,
       })
     } else {
@@ -131,14 +154,15 @@ export function resolveSlots<Slot extends string>(
   const resolved: Record<string, SlotProps> = {}
 
   for (const slot of slots) {
+    const named = { [SLOT_ATTRIBUTE]: slot }
     const overrides = stored?.[slot]
     if (overrides === undefined) {
-      resolved[slot] = {}
+      resolved[slot] = named
       continue
     }
     const result = slotStyle(slot, overrides)
     problems.push(...result.problems)
-    resolved[slot] = result.style ? { style: result.style } : {}
+    resolved[slot] = result.style ? { ...named, style: result.style } : named
   }
   for (const slot of Object.keys(stored ?? {})) {
     if (!slots.some((known) => known === slot)) {

@@ -302,6 +302,48 @@ const isKey = (value: string) => KEY.test(value) && value.length <= MAX_KEY_CHAR
 const isTokenName = (value: unknown) =>
   typeof value === "string" && TOKEN_NAME.test(value) && value.length <= MAX_KEY_CHARS
 
+// --- One value at a time -----------------------------------------------------
+//
+// What the properties panel checks as a person types (ADR 0009): the same
+// rules as above, for one name, data path or form name, with the words a
+// person needs to put it right. The checker above reports the same cases.
+
+/** Why `name` cannot be a component's name, or null if it can (apart from being taken). */
+export function nameProblem(name: string): string | null {
+  if (name === "") return "A component needs a name."
+  if (name.length > MAX_KEY_CHARS) return `Use ${MAX_KEY_CHARS} characters or fewer.`
+  if (/^[0-9]/.test(name)) return "A name cannot start with a digit."
+  if (!IDENTIFIER.test(name)) return "Use only letters, digits, _ and $, with no spaces."
+  return null
+}
+
+/** Why `path` cannot be a data path, or null if it can (apart from clashing with another). */
+export function pathProblem(path: string): string | null {
+  if (path === "") return "A data path is needed to store the value under."
+  if (path.length > MAX_PATH_CHARS) return `Use ${MAX_PATH_CHARS} characters or fewer.`
+  if (!path.split(".").every((part) => IDENTIFIER.test(part))) {
+    return "Use names joined by dots, such as person.firstName: letters, digits, _ and $, each not starting with a digit."
+  }
+  return null
+}
+
+/** Why `name` cannot be a form's name, or null if it can. */
+export function formNameProblem(name: string): string | null {
+  if (BLANK.test(name)) return "A form needs a name."
+  const length = characters(name)
+  return length > MAX_NAME_CHARS
+    ? `The name is ${length} characters long; the limit is ${MAX_NAME_CHARS}.`
+    : null
+}
+
+/** Why `description` cannot be a form's description, or null if it can. */
+export function formDescriptionProblem(description: string): string | null {
+  const length = characters(description)
+  return length > MAX_DESCRIPTION_CHARS
+    ? `The description is ${length} characters long; the limit is ${MAX_DESCRIPTION_CHARS}.`
+    : null
+}
+
 // --- The limits on a request -------------------------------------------------
 
 export type LimitProblem = "too-deep" | "too-large"

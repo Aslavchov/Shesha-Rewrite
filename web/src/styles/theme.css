@@ -24,6 +24,9 @@
   --accent: var(--sys-color-subtle);
   --accent-foreground: var(--sys-color-subtle-foreground);
   --destructive: var(--sys-color-destructive);
+  --success: var(--sys-color-success);
+  --warning: var(--sys-color-warning);
+  --info: var(--sys-color-info);
   --border: var(--sys-color-border);
   --input: var(--sys-color-border-control);
   --ring: var(--sys-color-focus-ring);
@@ -92,6 +95,9 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

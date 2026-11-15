@@ -51,6 +51,13 @@
   --ref-red-400: oklch(0.704 0.191 22.2);
   --ref-red-600: oklch(0.577 0.245 27.3);
 
+  /* Green and amber, for success and warning messages. The darker steps keep
+     4.5:1 against white; the lighter ones against the dark background. */
+  --ref-green-400: oklch(0.79 0.17 152);
+  --ref-green-700: oklch(0.5 0.13 152);
+  --ref-amber-300: oklch(0.86 0.15 85);
+  --ref-amber-700: oklch(0.53 0.14 60);
+
   /* Translucent neutrals for dark-mode hairlines and scrims. */
   --ref-white-a10: oklch(1 0 0 / 10%);
   --ref-white-a15: oklch(1 0 0 / 15%);
@@ -84,6 +91,9 @@
 
   /* Feedback */
   --sys-color-destructive: var(--ref-red-600);
+  --sys-color-success: var(--ref-green-700);
+  --sys-color-warning: var(--ref-amber-700);
+  --sys-color-info: var(--ref-blue-600);
 
   /* Lines */
   --sys-color-border: var(--ref-neutral-200);
@@ -128,6 +138,9 @@
   --sys-color-primary-foreground: var(--ref-blue-950);
 
   --sys-color-destructive: var(--ref-red-400);
+  --sys-color-success: var(--ref-green-400);
+  --sys-color-warning: var(--ref-amber-300);
+  --sys-color-info: var(--ref-blue-300);
 
   --sys-color-border: var(--ref-white-a10);
   --sys-color-border-control: var(--ref-white-a15);

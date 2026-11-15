@@ -1,9 +1,11 @@
-import type { ComponentInstance, FormDocument } from "@/generated"
+import { slotStyle } from "@/forms/runtime"
+import type { ComponentInstance, FormDocument, SlotStyle } from "@/generated"
 
 import { createId, cryptoRandom, type RandomIndex } from "./ids"
 import { type Taken, takeName } from "./names"
 import { applyOperation, type Operation, type Refusal } from "./operations"
 import { countInside, type Outline, type OutlineNode, regionAt, type Schema } from "./schema"
+import { FORM_OWNER, ownerOf, type SettingsOwner, settingProblem } from "./settings"
 import { allInstances, type Position, ROOT_REGION, rootPosition, samePosition } from "./tree"
 
 /**
@@ -31,7 +33,16 @@ export type HistoryEntry = {
   readonly label: string
   readonly document: FormDocument
   readonly selection: string | null
+  /**
+   * The run of edits this entry stands for (ADR 0009). A change that carries
+   * the same `merge` as the last entry replaces the document after it
+   * instead of adding a step, so a run of keystrokes is undone at once.
+   */
+  readonly merge?: string
 }
+
+/** The style properties of a slot (ADR 0006). */
+export type StyleProperty = keyof SlotStyle
 
 /** How many changes can be undone. Older ones are dropped. */
 export const HISTORY_LIMIT = 100
@@ -52,6 +63,33 @@ export type Command =
   | { readonly type: "undo" }
   | { readonly type: "redo" }
   | { readonly type: "select"; readonly id: string | null }
+  // Phase 3 (ADR 0009). Each can carry `merge`: changes in a row with the
+  // same `merge` are one step in the history. The properties panel gives
+  // every field a new one each time it is focused.
+  | Merged<{ readonly type: "rename"; readonly id: string; readonly name: string }>
+  | Merged<{ readonly type: "bind"; readonly id: string; readonly path: string }>
+  /** One setting of an instance, or of the form when `id` is null. */
+  | Merged<{
+      readonly type: "set-setting"
+      readonly id: string | null
+      readonly key: string
+      readonly value: unknown
+    }>
+  | { readonly type: "reset-setting"; readonly id: string | null; readonly key: string }
+  /** One style property of one slot. `undefined` removes the override. */
+  | Merged<{
+      readonly type: "set-style"
+      readonly id: string
+      readonly slot: string
+      readonly property: StyleProperty
+      readonly value: SlotStyle[StyleProperty] | undefined
+    }>
+  /** Every override of one slot. */
+  | { readonly type: "reset-slot"; readonly id: string; readonly slot: string }
+  | Merged<{ readonly type: "rename-form"; readonly name: string }>
+  | Merged<{ readonly type: "describe-form"; readonly description: string }>
+
+type Merged<T> = T & { readonly merge?: string }
 
 export type CommandResult = {
   readonly state: EditorState
@@ -74,7 +112,36 @@ const REFUSALS: Record<Refusal, string> = {
   "no-change": "It is already there.",
   "too-deep": "That would nest components too deeply.",
   "too-large": "The form is too large to hold more.",
+  "invalid-name": "That is not a valid name.",
+  "name-taken": "Another component already has that name.",
+  "invalid-path": "That is not a valid data path.",
+  "path-clash": "Another component already stores its value there.",
+  "invalid-form-name": "That is not a valid name for a form.",
+  "invalid-description": "That description is too long.",
+  "not-bound": "This component has no data path.",
 }
+
+/** What a style property is called in words. */
+export const STYLE_PROPERTY_LABELS: Record<StyleProperty, string> = {
+  color: "Text colour",
+  background: "Background",
+  borderColor: "Border colour",
+  radius: "Corner radius",
+  fontWeight: "Font weight",
+  padding: "Padding",
+}
+
+/** How many instances sit in regions their container does not show, anywhere in the form. */
+function hiddenCount(outline: Outline): number {
+  let count = 0
+  for (const node of outline.order) {
+    if (node.parent?.shown && !regionAt(outline, node.position)?.shown)
+      count += 1 + countInside(node)
+  }
+  return count
+}
+
+const components = (count: number) => (count === 1 ? "1 component" : `${count} components`)
 
 export function runCommand(
   state: EditorState,
@@ -85,16 +152,34 @@ export function runCommand(
   const outline = schema.outline(state.document)
   const nothing = (message: string | null): CommandResult => ({ state, changed: false, message })
 
-  /** Applies one operation and records it in the history. */
+  /**
+   * Applies one operation and records it in the history. With `merge`, a
+   * change that continues the run of the last entry replaces that entry's
+   * "after" instead of adding a step, and says nothing more aloud.
+   */
   function change(
     operation: Operation,
     label: string,
     selection: string | null,
     describe: (after: Outline) => string,
+    merge?: string,
   ): CommandResult {
     const applied = applyOperation(state.document, operation, schema)
     if (!applied.ok) return nothing(REFUSALS[applied.refusal])
-    const entry: HistoryEntry = { label, document: state.document, selection: state.selection }
+    const last = state.past.at(-1)
+    if (merge !== undefined && last?.merge === merge && state.future.length === 0) {
+      return {
+        state: { ...state, document: applied.document, selection },
+        changed: true,
+        message: null,
+      }
+    }
+    const entry: HistoryEntry = {
+      label,
+      document: state.document,
+      selection: state.selection,
+      ...(merge === undefined ? {} : { merge }),
+    }
     return {
       state: {
         document: applied.document,
@@ -105,6 +190,41 @@ export function runCommand(
       changed: true,
       message: describe(schema.outline(applied.document)),
     }
+  }
+
+  /** Whose settings a command means, and how it is named in messages. */
+  function owner(id: string | null): { owner: SettingsOwner; name: string } | string {
+    if (id === null) return { owner: FORM_OWNER, name: "the form" }
+    const node = outline.byId.get(id)
+    if (!node) return REFUSALS["not-found"]
+    if (!node.definition) return "A component of an unknown type cannot be configured."
+    return { owner: ownerOf(node.definition), name: node.instance.name }
+  }
+
+  /** A setting change, said with what it does to hidden components. */
+  function settingChange(
+    operation: Operation,
+    label: string,
+    said: string,
+    merge?: string,
+  ): CommandResult {
+    const hiddenBefore = hiddenCount(outline)
+    return change(
+      operation,
+      label,
+      state.selection,
+      (after) => {
+        const hiddenAfter = hiddenCount(after)
+        if (hiddenAfter > hiddenBefore) {
+          return `${said} ${components(hiddenAfter - hiddenBefore)} now hidden; ${hiddenAfter - hiddenBefore === 1 ? "it comes" : "they come"} back when the region is shown again.`
+        }
+        if (hiddenAfter < hiddenBefore) {
+          return `${said} ${components(hiddenBefore - hiddenAfter)} shown again.`
+        }
+        return said
+      },
+      merge,
+    )
   }
 
   switch (command.type) {
@@ -197,6 +317,123 @@ export function runCommand(
       )
     }
 
+    case "rename": {
+      const node = outline.byId.get(command.id)
+      if (!node) return nothing(REFUSALS["not-found"])
+      const before = node.instance.name
+      return change(
+        { type: "rename", id: command.id, name: command.name },
+        `Rename ${before}`,
+        state.selection,
+        () => `Renamed ${before} to ${command.name}.`,
+        command.merge,
+      )
+    }
+
+    case "bind": {
+      const node = outline.byId.get(command.id)
+      if (!node) return nothing(REFUSALS["not-found"])
+      const { name } = node.instance
+      return change(
+        { type: "bind", id: command.id, path: command.path },
+        `Change the data path of ${name}`,
+        state.selection,
+        () => `${name} now stores its value under ${command.path}.`,
+        command.merge,
+      )
+    }
+
+    case "set-setting": {
+      const found = owner(command.id)
+      if (typeof found === "string") return nothing(found)
+      const stored =
+        command.id === null
+          ? state.document.settings
+          : outline.byId.get(command.id)?.instance.settings
+      const problem = settingProblem(found.owner, stored, command.key, command.value)
+      if (problem !== null) return nothing(problem)
+      const setting = found.owner.settings[command.key]
+      const label = setting?.label ?? command.key
+      return settingChange(
+        { type: "set-setting", id: command.id, key: command.key, value: command.value },
+        `Change ${label.toLowerCase()} of ${found.name}`,
+        `${label} of ${found.name}: ${describeValue(setting?.parse(command.value), setting?.choices)}.`,
+        command.merge,
+      )
+    }
+
+    case "reset-setting": {
+      const found = owner(command.id)
+      if (typeof found === "string") return nothing(found)
+      const label = found.owner.settings[command.key]?.label ?? `“${command.key}”`
+      return settingChange(
+        { type: "reset-setting", id: command.id, key: command.key },
+        `Reset ${label.toLowerCase()} of ${found.name}`,
+        `${label} of ${found.name} is back to its default.`,
+      )
+    }
+
+    case "set-style": {
+      const node = outline.byId.get(command.id)
+      if (!node) return nothing(REFUSALS["not-found"])
+      const current = node.instance.styles?.[command.slot] ?? {}
+      const { [command.property]: _, ...rest } = current
+      const style: SlotStyle =
+        command.value === undefined ? rest : { ...rest, [command.property]: command.value }
+      if (command.value !== undefined) {
+        if (!node.definition?.slots.includes(command.slot)) {
+          return nothing(`${node.instance.name} has no part called ${command.slot}.`)
+        }
+        const checked = slotStyle(command.slot, { [command.property]: command.value })
+        if (checked.problems.length > 0) return nothing("That is not a valid style value.")
+      }
+      const label = STYLE_PROPERTY_LABELS[command.property]
+      const { name } = node.instance
+      return change(
+        { type: "set-style", id: command.id, slot: command.slot, style },
+        `Change ${label.toLowerCase()} of ${command.slot} of ${name}`,
+        state.selection,
+        () =>
+          command.value === undefined
+            ? `${label} of ${command.slot} of ${name} is back to its default.`
+            : `${label} of ${command.slot} of ${name}: ${describeStyle(command.value)}.`,
+        command.merge,
+      )
+    }
+
+    case "reset-slot": {
+      const node = outline.byId.get(command.id)
+      if (!node) return nothing(REFUSALS["not-found"])
+      const { name } = node.instance
+      return change(
+        { type: "set-style", id: command.id, slot: command.slot, style: {} },
+        `Reset the styles of ${command.slot} of ${name}`,
+        state.selection,
+        () => `The styles of ${command.slot} of ${name} are back to their defaults.`,
+      )
+    }
+
+    case "rename-form":
+      return change(
+        { type: "rename-form", name: command.name },
+        "Rename the form",
+        state.selection,
+        () => `Renamed the form to ${command.name}.`,
+        command.merge,
+      )
+
+    case "describe-form":
+      return change(
+        { type: "describe-form", description: command.description },
+        "Change the form's description",
+        state.selection,
+        () =>
+          command.description === ""
+            ? "Removed the form's description."
+            : "Changed the form's description.",
+        command.merge,
+      )
+
     case "undo": {
       const entry = state.past.at(-1)
       if (!entry) return nothing("Nothing to undo.")
@@ -229,6 +466,29 @@ export function runCommand(
       }
     }
   }
+}
+
+/** A setting's value in words, for an announcement. */
+function describeValue(
+  value: unknown,
+  choices: readonly { value: string; label: string }[] | undefined,
+): string {
+  if (value === null || value === undefined) return "none"
+  if (typeof value === "boolean") return value ? "on" : "off"
+  if (typeof value === "number") return String(value)
+  if (typeof value === "string") {
+    const choice = choices?.find((candidate) => candidate.value === value)
+    if (choice) return choice.label
+    return value.length > 60 ? `“${value.slice(0, 57)}…”` : `“${value}”`
+  }
+  if (Array.isArray(value)) return value.length === 1 ? "1 item" : `${value.length} items`
+  return "changed"
+}
+
+/** A style value in words: a token's name, a colour, or a step of a scale. */
+function describeStyle(value: SlotStyle[StyleProperty]): string {
+  if (typeof value === "object" && value !== null) return `the ${value.token} colour`
+  return String(value)
 }
 
 function idsIn(document: FormDocument): Set<string> {
@@ -346,5 +606,6 @@ export function place(outline: Outline, id: string): string {
 
 /** A region in words. A container with one region is named by itself. */
 export function regionLabel(parent: OutlineNode, region: string): string {
-  return parent.regions.length > 1 ? `${region} of ${parent.instance.name}` : parent.instance.name
+  const label = parent.regions.find((candidate) => candidate.name === region)?.label ?? region
+  return parent.regions.length > 1 ? `${label} of ${parent.instance.name}` : parent.instance.name
 }

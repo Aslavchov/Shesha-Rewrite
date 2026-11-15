@@ -24,8 +24,22 @@ export type SettingKind =
   | "options"
   | "number-list"
   | "messages"
+  | "tabs"
 
 export type Choice<T extends string = string> = { readonly value: T; readonly label: string }
+
+/** The bounds a number setting accepts. */
+export type NumberLimits = {
+  readonly min?: number
+  readonly max?: number
+  readonly whole?: boolean
+}
+
+/**
+ * Settings resolved but not yet typed: what `choicesFrom` reads. Each value
+ * is the stored value if valid, else the default.
+ */
+export type ResolvedSettings = Readonly<Record<string, unknown>>
 
 export type Setting<T> = {
   readonly kind: SettingKind
@@ -36,6 +50,16 @@ export type Setting<T> = {
   readonly default: T
   /** For `choice` settings: the values to choose from. */
   readonly choices?: readonly Choice[]
+  /**
+   * For `choice` settings whose values come from another setting (a default
+   * that must be one of the options): the values to choose from, given the
+   * instance's other settings. Added in Phase 3 (ADR 0009).
+   */
+  readonly choicesFrom?: (settings: ResolvedSettings) => readonly Choice[]
+  /** For `number` settings: the bounds the parser accepts, so an editor can say them. */
+  readonly limits?: NumberLimits
+  /** For `text` settings: the text may run over several lines. */
+  readonly multiline?: boolean
   /** Reads a stored JSON value; `undefined` means it is not valid here. */
   readonly parse: (stored: unknown) => T | undefined
 }
@@ -50,7 +74,7 @@ export type SettingsOf<S extends SettingsSchema> = {
 type Meta = { label: string; help?: string; group: SettingGroup }
 
 /** A piece of text that always has a value. */
-export function text(meta: Meta & { default: string }): Setting<string> {
+export function text(meta: Meta & { default: string; multiline?: boolean }): Setting<string> {
   return {
     kind: "text",
     ...meta,
@@ -59,7 +83,7 @@ export function text(meta: Meta & { default: string }): Setting<string> {
 }
 
 /** Optional text. Empty text counts as not set. */
-export function optionalText(meta: Meta): Setting<string | null> {
+export function optionalText(meta: Meta & { multiline?: boolean }): Setting<string | null> {
   return {
     kind: "text",
     ...meta,
@@ -77,8 +101,6 @@ export function toggle(meta: Meta & { default: boolean }): Setting<boolean> {
   }
 }
 
-type NumberLimits = { min?: number; max?: number; whole?: boolean }
-
 function readNumber(stored: unknown, { min, max, whole }: NumberLimits): number | undefined {
   if (typeof stored !== "number" || !Number.isFinite(stored)) return undefined
   if (whole && !Number.isInteger(stored)) return undefined
@@ -90,16 +112,19 @@ function readNumber(stored: unknown, { min, max, whole }: NumberLimits): number 
 /** A number that always has a value, optionally whole and within limits. */
 export function number(meta: Meta & NumberLimits & { default: number }): Setting<number> {
   const { min, max, whole, ...rest } = meta
-  return { kind: "number", ...rest, parse: (stored) => readNumber(stored, { min, max, whole }) }
+  const limits = { min, max, whole }
+  return { kind: "number", ...rest, limits, parse: (stored) => readNumber(stored, limits) }
 }
 
 export function optionalNumber(meta: Meta & NumberLimits): Setting<number | null> {
   const { min, max, whole, ...rest } = meta
+  const limits = { min, max, whole }
   return {
     kind: "number",
     ...rest,
+    limits,
     default: null,
-    parse: (stored) => (stored === null ? null : readNumber(stored, { min, max, whole })),
+    parse: (stored) => (stored === null ? null : readNumber(stored, limits)),
   }
 }
 
@@ -122,6 +147,25 @@ const SPACE_CHOICES: readonly Choice<Space>[] = [
   { value: "lg", label: "Large" },
   { value: "xl", label: "Extra large" },
 ]
+
+/**
+ * An optional choice among values another setting provides, such as the
+ * default of a choice control, which must be one of its options. Any text is
+ * read; a value that is not among the choices is the renderer's to ignore.
+ */
+export function optionalChoiceFrom(
+  meta: Meta & { from: (settings: ResolvedSettings) => readonly Choice[] },
+): Setting<string | null> {
+  const { from, ...rest } = meta
+  return {
+    kind: "choice",
+    ...rest,
+    default: null,
+    choicesFrom: from,
+    parse: (stored) =>
+      stored === null ? null : typeof stored === "string" ? stored || null : undefined,
+  }
+}
 
 /** A step of the space scale, for gaps. */
 export function space(meta: Meta & { default: Space }): Setting<Space> {
@@ -185,6 +229,40 @@ export function options(meta: Meta): Setting<readonly Option[]> {
   }
 }
 
+/** The choices a list of options offers: each option's label, or its value when it has none. */
+export function optionChoices(stored: unknown): readonly Choice[] {
+  const parsed = Array.isArray(stored) && stored.every(isOption) ? stored : []
+  return parsed.map((option) => ({ value: option.value, label: option.label || option.value }))
+}
+
+/** A tab of a component that shows one region at a time: the region's key and the tab's label. */
+export type Tab = { readonly key: string; readonly label: string }
+
+/** What a region name may be (ADR 0003): the server checks the same. */
+const REGION_KEY = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
+
+function isTab(value: unknown): value is Tab {
+  return isRecord(value) && typeof value.label === "string" && typeof value.key === "string"
+}
+
+/**
+ * Tabs, each with a stable key and a label. The key names the tab's region,
+ * so renaming a tab never moves its content (Phase 3, frozen by ADR 0009).
+ * At least one tab; keys distinct and valid region names.
+ */
+export function tabs(meta: Meta & { default: readonly Tab[] }): Setting<readonly Tab[]> {
+  return {
+    kind: "tabs",
+    ...meta,
+    parse: (stored) => {
+      if (!Array.isArray(stored) || stored.length === 0 || !stored.every(isTab)) return undefined
+      if (!stored.every((tab) => REGION_KEY.test(tab.key))) return undefined
+      const keys = new Set(stored.map((tab) => tab.key))
+      return keys.size === stored.length ? stored : undefined
+    },
+  }
+}
+
 /** An optional list of whole numbers of at least 1, such as column proportions. */
 export function optionalProportions(meta: Meta): Setting<readonly number[] | null> {
   return {
@@ -220,7 +298,23 @@ export const messagesSetting: Setting<Messages> = {
   parse: (stored) => (isMessages(stored) ? stored : undefined),
 }
 
-export type SettingProblem = { readonly setting: string; readonly message: string }
+export type SettingProblem = {
+  readonly setting: string
+  readonly message: string
+  /** For a broken constraint: every setting it reads, `setting` first. */
+  readonly related?: readonly string[]
+}
+
+/**
+ * A rule between settings that each read correctly on their own, such as a
+ * minimum that must not be above its maximum (ADR 0009). It returns the
+ * problem, about the first setting it names, or null.
+ */
+export type SettingsConstraint<T> = {
+  /** The settings it reads. The problem is reported on the first. */
+  readonly settings: readonly string[]
+  readonly check: (settings: T) => string | null
+}
 
 /**
  * Stored settings merged over the defaults. A stored value its setting
@@ -230,6 +324,7 @@ export type SettingProblem = { readonly setting: string; readonly message: strin
 export function resolveSettings<S extends SettingsSchema>(
   schema: S,
   stored: Readonly<Record<string, unknown>> | undefined,
+  constraints: readonly SettingsConstraint<SettingsOf<S>>[] = [],
 ): { settings: SettingsOf<S>; problems: SettingProblem[] } {
   const resolved: Record<string, unknown> = {}
   const problems: SettingProblem[] = []
@@ -255,5 +350,13 @@ export function resolveSettings<S extends SettingsSchema>(
 
   // The one place the inferred settings type is asserted: each key was just
   // filled from its own descriptor's default or parser.
-  return { settings: resolved as SettingsOf<S>, problems }
+  const settings = resolved as SettingsOf<S>
+  for (const constraint of constraints) {
+    const message = constraint.check(settings)
+    const [setting] = constraint.settings
+    if (message !== null && setting !== undefined) {
+      problems.push({ setting, message, related: constraint.settings })
+    }
+  }
+  return { settings, problems }
 }

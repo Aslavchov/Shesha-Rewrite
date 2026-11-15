@@ -23,6 +23,11 @@ export type DesignSurface = {
    * component put them in.
    */
   readonly Region: React.ComponentType<DesignRegionProps>
+  /**
+   * The region the author chose to see in a container that shows one region
+   * at a time (Tabs), or null. Optional; added in Phase 3 (ADR 0009).
+   */
+  readonly shownRegion?: (instanceId: string) => string | null
 }
 
 export type DesignInstanceProps = {

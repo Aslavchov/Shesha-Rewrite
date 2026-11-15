@@ -6,6 +6,7 @@ import {
   optionalPattern,
   toggle,
   type Messages,
+  type SettingsConstraint,
 } from "./settings"
 
 /**
@@ -94,6 +95,38 @@ export const maxDateSetting = optionalDate({
   label: "Latest date",
   group: "validation",
 })
+
+// --- Constraints between the settings ------------------------------------
+
+/**
+ * A lower limit must not be above its upper limit (ADR 0009). Either may be
+ * unset. Numbers compare as numbers; dates, stored as "YYYY-MM-DD", as text.
+ */
+function range<Low extends string, High extends string>(
+  low: Low,
+  high: High,
+  message: string,
+): SettingsConstraint<{ readonly [K in Low | High]: number | string | null }> {
+  return {
+    settings: [low, high],
+    check: (settings) => {
+      const from = settings[low]
+      const to = settings[high]
+      if (from === null || to === null) return null
+      const above =
+        typeof from === "number" && typeof to === "number" ? from > to : String(from) > String(to)
+      return above ? message : null
+    },
+  }
+}
+
+export const lengthRange = range(
+  "minLength",
+  "maxLength",
+  "The minimum length is more than the maximum length.",
+)
+export const numberRange = range("min", "max", "The minimum is more than the maximum.")
+export const dateRange = range("minDate", "maxDate", "The earliest date is after the latest date.")
 
 // --- Rules ---------------------------------------------------------------
 
