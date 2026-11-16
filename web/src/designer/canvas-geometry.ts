@@ -285,3 +285,113 @@ export const shift = (box: Box, dx: number, dy: number): Box => ({
 
 export const sameBox = (a: Box, b: Box) =>
   a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
+
+export type Size = { readonly width: number; readonly height: number }
+
+/** How far from its part a name tag is drawn: right outside the part's outline. */
+export const TAG_GAP = 4
+
+/** What is around a part that is pointed at, in the part's coordinates. */
+export type TagSurroundings = {
+  /**
+   * What the tag must not cover: the other parts of the same instance (the
+   * control, when the label is pointed at) and the instance's name badge.
+   */
+  readonly keepClear: readonly Box[]
+  /** What it should rather not cover, when it has the choice: the instances around. */
+  readonly ratherClear?: readonly Box[]
+  /** Where there is room to draw at all: the paper, or the preview's page. */
+  readonly within: Box
+}
+
+/** The area two boxes share. */
+function overlap(a: Box, b: Box): number {
+  const width = Math.min(right(a), right(b)) - Math.max(a.left, b.left)
+  const height = Math.min(bottom(a), bottom(b)) - Math.max(a.top, b.top)
+  return width > 0 && height > 0 ? width * height : 0
+}
+
+/**
+ * Where the name tag of a part that is pointed at goes (Phase 5, section 8).
+ *
+ * Always outside the part, so it never covers what it names. Around it, the
+ * first of these places that covers nothing it must keep clear and nothing
+ * it would rather keep clear: above the part at its end (where a label never
+ * is), below it at its end, above and below at its start, then beside it,
+ * after and before. When no place is free: one that is on the paper, that
+ * covers least of what must stay clear, then least of the rest.
+ */
+export function placeTag(part: Box, tag: Size, around: TagSurroundings): Box {
+  const above = part.top - TAG_GAP - tag.height
+  const below = bottom(part) + TAG_GAP
+  const atEnd = right(part) - tag.width
+  const places: Box[] = [
+    { left: atEnd, top: above, ...tag },
+    { left: atEnd, top: below, ...tag },
+    { left: part.left, top: above, ...tag },
+    { left: part.left, top: below, ...tag },
+    { left: right(part) + TAG_GAP, top: part.top, ...tag },
+    { left: part.left - TAG_GAP - tag.width, top: part.top, ...tag },
+  ]
+  const area = tag.width * tag.height
+  const sum = (boxes: readonly Box[], place: Box) =>
+    boxes.reduce((total, box) => total + overlap(place, box), 0)
+  let best = places[0]
+  let bestCost: readonly number[] = [Infinity]
+  for (const place of places) {
+    const cost = [
+      // Off the paper it may not be seen at all: that is worst.
+      area - overlap(place, around.within),
+      sum(around.keepClear, place),
+      sum(around.ratherClear ?? [], place),
+    ]
+    const differs = cost.findIndex((value, index) => value !== bestCost[index])
+    if (differs !== -1 && cost[differs] < (bestCost[differs] ?? Infinity)) {
+      best = place
+      bestCost = cost
+    }
+  }
+  return best
+}
+
+/** How far outside a part its outline reaches: its offset and its width, and a little. */
+const OUTLINE_REACH = 6
+/** How far from the name badge the outline stops. */
+const BADGE_CLEARANCE = 2
+
+/**
+ * The clip path that keeps a part's outline from running through its
+ * instance's name badge (Phase 5, section 8): everything the part draws,
+ * less the badge and a little around it. In the part's own coordinates, as
+ * CSS. Null when the outline does not come near the badge.
+ */
+export function outlineAround(part: Box, badge: Box | null): string | null {
+  if (badge === null) return null
+  const drawn = {
+    left: part.left - OUTLINE_REACH,
+    top: part.top - OUTLINE_REACH,
+    width: part.width + 2 * OUTLINE_REACH,
+    height: part.height + 2 * OUTLINE_REACH,
+  }
+  const hole = {
+    left: badge.left - BADGE_CLEARANCE,
+    top: badge.top - BADGE_CLEARANCE,
+    width: badge.width + 2 * BADGE_CLEARANCE,
+    height: badge.height + 2 * BADGE_CLEARANCE,
+  }
+  if (overlap(drawn, hole) === 0) return null
+  const corners = (box: Box) => {
+    const x0 = box.left - part.left
+    const y0 = box.top - part.top
+    const x1 = x0 + box.width
+    const y1 = y0 + box.height
+    return [`${x0}px ${y0}px`, `${x1}px ${y0}px`, `${x1}px ${y1}px`, `${x0}px ${y1}px`]
+  }
+  const [first, ...rest] = corners(drawn)
+  const [holeFirst, ...holeRest] = corners(hole)
+  // Two rings in one polygon: what is inside both is left out (even-odd).
+  return `polygon(evenodd, ${[first, ...rest, first, holeFirst, ...holeRest, holeFirst, first].join(", ")})`
+}
+
+export const sameSize = (a: Size | null, b: Size | null) =>
+  a === b || (a !== null && b !== null && a.width === b.width && a.height === b.height)

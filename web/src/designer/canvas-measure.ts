@@ -163,6 +163,86 @@ export function measureSlot(form: Element, origin: Element, id: string, slot: st
   return boxes
 }
 
+/** Whether an element paints a box of its own: a border, a background or a shadow. */
+function paintsBox(element: Element): boolean {
+  if (element.matches("input, select, textarea, button")) return true
+  const style = getComputedStyle(element)
+  const hasBorder = (["Top", "Right", "Bottom", "Left"] as const).some(
+    (side) =>
+      style[`border${side}Style`] !== "none" && Number.parseFloat(style[`border${side}Width`]) > 0,
+  )
+  // No colour at all, or one with no alpha: `rgba(…, 0)`, or `… / 0)` in the newer syntaxes.
+  const hasBackground = !/^(|transparent|rgba\(.*,\s*0\)|.*\/\s*0\))$/.test(style.backgroundColor)
+  return hasBorder || hasBackground || (style.boxShadow !== "" && style.boxShadow !== "none")
+}
+
+/**
+ * What an element puts on the page, in the window's coordinates: its box
+ * when it paints one, and otherwise only as far as its content reaches. A
+ * label or a help text is often as wide as its component while its words
+ * end long before; what is beside the words is free. Null if it draws nothing.
+ */
+export function inkOf(element: Element): Box | null {
+  const box = element.getBoundingClientRect()
+  if (box.width === 0 && box.height === 0) return null
+  const whole = { left: box.left, top: box.top, width: box.width, height: box.height }
+  if (paintsBox(element)) return whole
+  const range = element.ownerDocument.createRange()
+  range.selectNodeContents(element)
+  // Not every DOM measures ranges (the one the unit tests run in does not).
+  if (typeof range.getClientRects !== "function") return whole
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const rect of range.getClientRects()) {
+    if (rect.width === 0 && rect.height === 0) continue
+    left = Math.min(left, rect.left)
+    top = Math.min(top, rect.top)
+    right = Math.max(right, rect.right)
+    bottom = Math.max(bottom, rect.bottom)
+  }
+  if (left === Infinity) return whole
+  // Never more than the element's own box: content that overflows is not its ink to keep.
+  left = Math.max(left, box.left)
+  top = Math.max(top, box.top)
+  right = Math.min(right, box.right)
+  bottom = Math.min(bottom, box.bottom)
+  return right > left && bottom > top
+    ? { left, top, width: right - left, height: bottom - top }
+    : whole
+}
+
+/**
+ * The other parts of the instance a pointed part belongs to, as far as each
+ * is drawn: what its name tag must not cover. A part around the pointed one,
+ * or inside it, is not another part to keep clear of: the tag is drawn
+ * outside the pointed one. When the slot is drawn more than once (the options
+ * of a group), the ones after the first count too: the tag belongs to the first.
+ */
+export function measureOtherParts(form: Element, origin: Element, id: string, slot: string): Box[] {
+  const from = origin.getBoundingClientRect()
+  const parts = [...form.querySelectorAll(`[${SLOT_ATTRIBUTE}]`)].filter(
+    (element) => ownerOf(element) === id,
+  )
+  const tagged = parts.find(
+    (element) => element.getAttribute(SLOT_ATTRIBUTE) === slot && boxOf(element, from) !== null,
+  )
+  const boxes: Box[] = []
+  for (const element of parts) {
+    if (element === tagged) continue
+    if (tagged && (element.contains(tagged) || tagged.contains(element))) continue
+    const ink = inkOf(element)
+    if (ink) boxes.push({ ...ink, left: ink.left - from.left, top: ink.top - from.top })
+  }
+  return boxes
+}
+
+/** The box of any element of the canvas, in the same coordinates. Null if it draws nothing. */
+export function measureElement(element: Element | null, origin: Element): Box | null {
+  return element ? boxOf(element, origin.getBoundingClientRect()) : null
+}
+
 export const sameBoxes = (a: readonly Box[], b: readonly Box[]) =>
   a.length === b.length && a.every((box, index) => sameBox(box, b[index]))
 

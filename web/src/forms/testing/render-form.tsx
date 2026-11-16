@@ -1,3 +1,4 @@
+import type * as React from "react"
 import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { vi } from "vitest"
@@ -60,10 +61,16 @@ export function formDocument(
  * Renders a form made of `components` using only `definitions`, and returns
  * what a test needs to drive it.
  */
+type RenderOptions = {
+  mode?: FormMode
+  /** Wraps the form, for components that need a provider (Phase 5: the data API). */
+  wrapper?: React.JSXElementConstructor<{ children: React.ReactNode }>
+}
+
 export function renderForm(
   components: ComponentInstance[],
   definitions: readonly ComponentDefinition[],
-  options: { mode?: FormMode } = {},
+  options: RenderOptions = {},
 ) {
   return renderDocument(formDocument(components), definitions, options)
 }
@@ -72,7 +79,7 @@ export function renderForm(
 export function renderDocument(
   document: FormDocument,
   definitions: readonly ComponentDefinition[],
-  { mode = "edit" }: { mode?: FormMode } = {},
+  { mode = "edit", wrapper }: RenderOptions = {},
 ) {
   const registry = createRegistry(definitions)
   const onSubmit = vi.fn<(values: NestedValues) => void>()
@@ -86,7 +93,7 @@ export function renderDocument(
       onReset={onReset}
     />
   )
-  const view = render(element(mode))
+  const view = render(element(mode), wrapper ? { wrapper } : undefined)
 
   return {
     user: userEvent.setup(),

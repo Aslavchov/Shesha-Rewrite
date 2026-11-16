@@ -219,4 +219,95 @@ describe("the theme editor (spec 4)", () => {
     await user.keyboard("{End}")
     expect(swatches.at(-1)).toHaveFocus()
   })
+
+  it("keeps focus on Publish and on Discard once they have nothing left to do (Phase 5, section 8)", async () => {
+    const { api, user } = renderEditor(stateOf({ ...EMPTY, radius: 12 }, EMPTY))
+    const publish = screen.getByTestId("theme-publish")
+    publish.focus()
+    await user.keyboard("{Enter}")
+    expect(status()).toHaveAttribute("data-status", "published")
+    // Unavailable, said so, and still where the keyboard is.
+    expect(publish).toHaveAttribute("aria-disabled", "true")
+    expect(publish).not.toBeDisabled()
+    expect(publish).toHaveFocus()
+    // And it does nothing while it says so.
+    await user.keyboard("{Enter}")
+    expect(api.publish).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByTestId("theme-reset-default"))
+    await user.click(screen.getByTestId("theme-undo"))
+    await user.click(screen.getByTestId("theme-redo"))
+    const discard = screen.getByTestId("theme-discard")
+    expect(discard).not.toHaveAttribute("aria-disabled")
+    discard.focus()
+    await user.keyboard("{Enter}")
+    expect(status()).toHaveAttribute("data-status", "published")
+    expect(discard).toHaveAttribute("aria-disabled", "true")
+    expect(discard).not.toBeDisabled()
+    expect(discard).toHaveFocus()
+    await user.keyboard("{Enter}")
+    expect(api.discard).toHaveBeenCalledTimes(1)
+  })
+
+  it("makes the component grid one Tab stop moved with the arrow keys (Phase 5, section 8)", async () => {
+    const { user } = renderEditor()
+    const items = within(screen.getByRole("list", { name: "Components" })).getAllByRole("button")
+    expect(items.length).toBe(registry.size)
+    expect(items.filter((item) => item.tabIndex === 0)).toEqual([items[0]])
+
+    items[0].focus()
+    await user.keyboard("{ArrowRight}")
+    expect(items[1]).toHaveFocus()
+    await user.keyboard("{ArrowRight}")
+    expect(items[2]).toHaveFocus()
+    await user.keyboard("{ArrowLeft}")
+    expect(items[1]).toHaveFocus()
+    await user.keyboard("{End}")
+    expect(items.at(-1)).toHaveFocus()
+    await user.keyboard("{ArrowRight}")
+    expect(items.at(-1)).toHaveFocus()
+    await user.keyboard("{Home}")
+    expect(items[0]).toHaveFocus()
+
+    // The one last focused holds the Tab stop, and Enter chooses it.
+    await user.keyboard("{ArrowRight}{Enter}")
+    expect(items[1]).toHaveAttribute("aria-pressed", "true")
+    expect(items.filter((item) => item.tabIndex === 0)).toEqual([items[1]])
+    expect(screen.getByTestId("theme-component-defaults")).toBeInTheDocument()
+  })
+
+  it("opens the grid's Tab stop on the component being styled", async () => {
+    const { user } = renderEditor()
+    const items = within(screen.getByRole("list", { name: "Components" })).getAllByRole("button")
+    await user.click(items[3])
+    expect(items.filter((item) => item.tabIndex === 0)).toEqual([items[3]])
+  })
+
+  it("names the component when it says what a default became (Phase 5, section 8)", async () => {
+    const { user } = renderEditor()
+    await user.click(screen.getByTestId("theme-component-card"))
+    await user.click(screen.getByTestId("theme-slot-root"))
+    await user.click(screen.getByTestId("theme-style-root-background"))
+    await user.click(screen.getByTestId("theme-token-success"))
+    expect(screen.getByTestId("theme-live")).toHaveTextContent(
+      "Background of Card's whole component: Success.",
+    )
+    expect(screen.getByTestId("theme-undo")).toHaveAccessibleName(
+      "Undo: Change background of Card's whole component",
+    )
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByTestId("theme-style-reset-root"))
+    expect(screen.getByTestId("theme-live")).toHaveTextContent(
+      "Every style of Card's whole component is back to the component's own.",
+    )
+  })
+
+  it("does not cut a component's name off (Phase 5, section 8)", () => {
+    renderEditor()
+    for (const definition of registry.values()) {
+      const name = screen.getByTestId(`theme-component-${definition.type}-name`)
+      expect(name).toHaveTextContent(definition.displayName)
+      expect(name.className).not.toMatch(/truncate|line-clamp|text-ellipsis/)
+    }
+  })
 })

@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { createBrowserRouter } from "react-router"
 import { RouterProvider } from "react-router/dom"
 
+import { DataProvider } from "@/data/provider"
 import { PublishedTheme } from "@/theme/published"
 
 import { createQueryClient } from "./api/query-client"
@@ -14,9 +15,11 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PublishedTheme>
-        <RouterProvider router={router} />
-      </PublishedTheme>
+      <DataProvider>
+        <PublishedTheme>
+          <RouterProvider router={router} />
+        </PublishedTheme>
+      </DataProvider>
     </QueryClientProvider>
   )
 }

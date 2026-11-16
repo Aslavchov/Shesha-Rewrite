@@ -1,3 +1,5 @@
+import type { PropertyDefinition } from "@/generated"
+
 import type { Position } from "../model/tree"
 import type { Surface } from "../store"
 
@@ -14,7 +16,12 @@ import type { Surface } from "../store"
 
 export type DragSource =
   /** A new instance of a component type, from the toolbox. */
-  | { readonly kind: "new"; readonly component: string }
+  | {
+      readonly kind: "new"
+      readonly component: string
+      /** The entity property the new instance is for, from the data panel (Phase 5). */
+      readonly property?: PropertyDefinition
+    }
   /** An instance already in the form. */
   | { readonly kind: "existing"; readonly id: string }
 

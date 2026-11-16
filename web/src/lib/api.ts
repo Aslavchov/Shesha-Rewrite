@@ -69,6 +69,9 @@ async function apiRequest<T>(
     throw new ApiRequestError(NETWORK_ERROR, "The server could not be reached.", null)
   }
 
+  // A successful delete has nothing to say.
+  if (response.status === 204) return undefined as T
+
   let parsed: unknown
   try {
     parsed = await response.json()
@@ -100,8 +103,15 @@ export const apiGet = <T>(path: string, signal?: AbortSignal) =>
   apiRequest<T>("GET", path, { signal })
 
 /** POST JSON to a resource under /api. */
-export const apiPost = <T>(path: string, body: unknown) => apiRequest<T>("POST", path, { body })
+export const apiPost = <T>(path: string, body: unknown, signal?: AbortSignal) =>
+  apiRequest<T>("POST", path, { body, signal })
 
 /** PUT JSON to a resource under /api. */
 export const apiPut = <T>(path: string, body: unknown, options: { keepalive?: boolean } = {}) =>
   apiRequest<T>("PUT", path, { body, ...options })
+
+/** PATCH JSON to a resource under /api: change part of it. */
+export const apiPatch = <T>(path: string, body: unknown) => apiRequest<T>("PATCH", path, { body })
+
+/** DELETE a resource under /api. */
+export const apiDelete = (path: string) => apiRequest<void>("DELETE", path)

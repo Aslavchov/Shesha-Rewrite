@@ -17,6 +17,17 @@ export const numberField = defineInput({
   constraints: [numberRange],
   rules: [required, wholeNumber, min, max],
   slots,
+  forProperty: (property) =>
+    property.type === "number"
+      ? {
+          label: property.displayName,
+          ...(property.helpText ? { helpText: property.helpText } : {}),
+          ...(property.required ? { required: true } : {}),
+          ...(property.whole ? { wholeNumber: true } : {}),
+          ...(property.min === undefined ? {} : { min: property.min }),
+          ...(property.max === undefined ? {} : { max: property.max }),
+        }
+      : null,
   Edit: NumberFieldEdit,
   ReadOnly: NumberFieldReadOnly,
 })

@@ -3,6 +3,7 @@ import {
   nestByPath,
   type NestedValues,
   normaliseValue,
+  valueAtPath,
   type ValueType,
 } from "./values"
 
@@ -37,6 +38,9 @@ export type SubmitResult =
   /** `firstInvalid` is the id of the first failing field in document order. */
   | { readonly valid: false; readonly firstInvalid: string }
 
+/** A problem the host found with a submitted value, by data path: a server's validation. */
+export type PathProblem = { readonly path: string; readonly message: string }
+
 const UNKNOWN_FIELD: FieldState = { value: null, error: null, resets: 0 }
 
 export class FormStore {
@@ -51,14 +55,56 @@ export class FormStore {
   readonly #mounted = new Map<string, number>()
   /** While held, fields that are left wait here instead of being validated. */
   readonly #left = new Set<string>()
+  /** Problems shown by `showProblems`, until the field changes. */
+  readonly #foreign = new Map<string, string>()
   #held = false
+  /**
+   * The values the form was opened with, by data path: a loaded row
+   * (Phase 5, ADR 0011). A field starts from, and resets to, the value here,
+   * or its default when there is none.
+   */
+  #loaded: NestedValues | undefined
 
-  constructor(fields: readonly FieldSpec[]) {
+  constructor(fields: readonly FieldSpec[], loaded?: NestedValues) {
     this.#fields = fields
+    this.#loaded = loaded
     for (const field of fields) {
       this.#specs.set(field.id, field)
-      this.#states.set(field.id, { value: initialValue(field), error: null, resets: 0 })
+      this.#states.set(field.id, { value: this.#initial(field), error: null, resets: 0 })
     }
+  }
+
+  /**
+   * Starts again from other loaded values: after a save, the row as the
+   * server stored it; after a reload, the row as it is now. Errors go, and
+   * controls drop any text they were holding.
+   */
+  load(loaded: NestedValues | undefined): void {
+    this.#loaded = loaded
+    this.reset()
+  }
+
+  /**
+   * Shows problems found outside the form (a server's validation) on the
+   * fields bound to their paths. Each goes when its field next changes to a
+   * value the form's own rules accept. Returns the id of the first field, in
+   * document order, that got one, and the problems no mounted field took.
+   */
+  showProblems(problems: readonly PathProblem[]): {
+    readonly first: string | null
+    readonly unplaced: readonly PathProblem[]
+  } {
+    const byPath = new Map(problems.map((problem) => [problem.path, problem]))
+    let first: string | null = null
+    for (const spec of this.#fields) {
+      const problem = byPath.get(spec.path)
+      if (!problem || !this.#mounted.has(spec.id)) continue
+      byPath.delete(spec.path)
+      this.#foreign.set(spec.id, problem.message)
+      this.#update(spec.id, { value: this.get(spec.id).value, error: problem.message })
+      first ??= spec.id
+    }
+    return { first, unplaced: [...byPath.values()] }
   }
 
   /** The current snapshot of a field. The same object until the field changes. */
@@ -88,6 +134,7 @@ export class FormStore {
     const spec = this.#specs.get(id)
     if (!spec) return
     this.#unreadable.delete(id)
+    this.#foreign.delete(id)
     const current = this.get(id)
     const next = normaliseValue(spec.valueType, value)
     this.#update(id, {
@@ -105,6 +152,7 @@ export class FormStore {
     const spec = this.#specs.get(id)
     if (!spec) return
     this.#unreadable.set(id, message)
+    this.#foreign.delete(id)
     const current = this.get(id)
     const value = normaliseValue(spec.valueType, null)
     this.#update(id, { value, error: current.error === null ? null : this.#check(spec, value) })
@@ -157,6 +205,8 @@ export class FormStore {
 
   /** Validates every mounted field and shows every error. */
   submit(): SubmitResult {
+    // Whoever found a problem outside the form is asked again.
+    this.#foreign.clear()
     let firstInvalid: string | null = null
     for (const spec of this.#fields) {
       if (!this.#mounted.has(spec.id)) continue
@@ -173,10 +223,11 @@ export class FormStore {
   /** Every value back to its default, every error cleared. */
   reset(): void {
     this.#unreadable.clear()
+    this.#foreign.clear()
     this.#left.clear()
     for (const spec of this.#fields) {
       const resets = this.get(spec.id).resets + 1
-      this.#states.set(spec.id, { value: initialValue(spec), error: null, resets })
+      this.#states.set(spec.id, { value: this.#initial(spec), error: null, resets })
       this.#notify(spec.id)
     }
   }
@@ -187,7 +238,16 @@ export class FormStore {
   }
 
   #check(spec: FieldSpec, value: FieldValue): string | null {
-    return this.#unreadable.get(spec.id) ?? spec.validate(value)
+    // A problem from outside stays until the value changes: leaving the
+    // field, or pressing Save again, must not make it vanish unfixed.
+    return (
+      this.#unreadable.get(spec.id) ?? spec.validate(value) ?? this.#foreign.get(spec.id) ?? null
+    )
+  }
+
+  #initial(spec: FieldSpec): FieldValue {
+    const loaded = this.#loaded === undefined ? undefined : valueAtPath(this.#loaded, spec.path)
+    return normaliseValue(spec.valueType, loaded === undefined ? spec.defaultValue : loaded)
   }
 
   #update(id: string, next: Pick<FieldState, "value" | "error">): void {
@@ -200,8 +260,4 @@ export class FormStore {
   #notify(id: string): void {
     for (const listener of this.#listeners.get(id) ?? []) listener()
   }
-}
-
-function initialValue(spec: FieldSpec): FieldValue {
-  return normaliseValue(spec.valueType, spec.defaultValue)
 }

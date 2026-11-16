@@ -21,8 +21,12 @@
   html {
     @apply font-sans antialiased;
     /* Whatever is scrolled into view (a focused field, a link target) stops
-       below the sticky header, not underneath it. */
-    scroll-padding-top: calc(var(--sys-size-header) + var(--sys-space-md));
+       below the sticky header, not underneath it. A page with a sticky bar
+       of its own below the header (the theme editor's actions) says how tall
+       it is in --page-sticky-height. */
+    scroll-padding-top: calc(
+      var(--sys-size-header) + var(--page-sticky-height, 0px) + var(--sys-space-md)
+    );
   }
 
   body {

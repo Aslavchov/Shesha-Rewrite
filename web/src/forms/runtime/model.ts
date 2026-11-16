@@ -1,7 +1,7 @@
 import type { ComponentInstance, FormDocument, Space } from "@/generated"
 
 import type { ComponentDefinition, PreparedComponent, Registry } from "./definition"
-import { resolveSettings, space } from "./settings"
+import { entityName, resolveSettings, space } from "./settings"
 import type { FieldSpec } from "./store"
 
 /**
@@ -13,6 +13,13 @@ import type { FieldSpec } from "./store"
 
 /** The form's own settings. Stored sparsely, like a component's. */
 export const formSettings = {
+  // Phase 5 (ADR 0011): a form bound to an entity loads and saves one of its
+  // rows, and each input's data path names one of its properties.
+  entity: entityName({
+    label: "Entity",
+    help: "The form loads and saves a row of this entity. Each input's data path is then one of its properties.",
+    group: "data",
+  }),
   gap: space({
     label: "Gap",
     help: "The space between the form's top-level components.",

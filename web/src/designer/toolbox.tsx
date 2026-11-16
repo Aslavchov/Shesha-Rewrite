@@ -8,6 +8,7 @@ import { PanelTitle } from "./panel-title"
 /** The groups, in the order they are listed, and what each is called. */
 const CATEGORIES: readonly { category: ComponentCategory; title: string }[] = [
   { category: "input", title: "Inputs" },
+  { category: "data", title: "Data" },
   { category: "layout", title: "Layout" },
   { category: "content", title: "Content" },
   { category: "action", title: "Actions" },

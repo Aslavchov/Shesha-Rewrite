@@ -76,18 +76,19 @@ describe("app shell", () => {
     expect(screen.getByTestId(`nav-${page.id}`)).toHaveAttribute("aria-current", "page")
   })
 
-  it.each([
-    ["entities", "Arrives in Phase 5."],
-    ["settings", "Arrives after v1."],
-  ])("%s has an empty state saying what is coming and when: %s", (id, arrival) => {
-    const page = UPCOMING_PAGES.find((candidate) => candidate.id === id)
-    stubInfo(infoOk)
-    renderAt(page?.path ?? "")
+  // Entities was built in Phase 5; Settings is the one page still to come.
+  it.each([["settings", "Arrives after v1."]])(
+    "%s has an empty state saying what is coming and when: %s",
+    (id, arrival) => {
+      const page = UPCOMING_PAGES.find((candidate) => candidate.id === id)
+      stubInfo(infoOk)
+      renderAt(page?.path ?? "")
 
-    expect(screen.getByTestId("empty-state-description")).toHaveTextContent(
-      `${page?.upcoming?.summary} ${arrival}`,
-    )
-  })
+      expect(screen.getByTestId("empty-state-description")).toHaveTextContent(
+        `${page?.upcoming?.summary} ${arrival}`,
+      )
+    },
+  )
 
   it.each(["/forms", "/designer"])("%s is a built page, not an upcoming one", async (path) => {
     stubInfo(infoOk)

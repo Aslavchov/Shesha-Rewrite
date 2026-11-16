@@ -52,6 +52,7 @@ describe("the theme editing model (ADR 0010)", () => {
     const state = run(start(), {
       type: "set-style",
       component: "button",
+      name: "Button",
       slot: "root",
       property: "background",
       value: { token: "success" },
@@ -59,9 +60,44 @@ describe("the theme editing model (ADR 0010)", () => {
     expect(state.document.components).toEqual({
       button: { root: { background: { token: "success" } } },
     })
-    expect(run(state, { type: "reset-slot", component: "button", slot: "root" }).document).toEqual(
-      EMPTY_THEME,
+    expect(
+      run(state, { type: "reset-slot", component: "button", name: "Button", slot: "root" })
+        .document,
+    ).toEqual(EMPTY_THEME)
+  })
+
+  it("names the component in what it says about a default (Phase 5, section 8)", () => {
+    const background = {
+      type: "set-style",
+      component: "card",
+      name: "Card",
+      slot: "root",
+      property: "background",
+    } as const
+    const set = runThemeCommand(start(), { ...background, value: { token: "muted" } })
+    expect(set.message).toBe("Background of Card's whole component: Muted.")
+    expect(set.state.past.at(-1)?.label).toBe("Change background of Card's whole component")
+    expect(runThemeCommand(set.state, { ...background, value: undefined }).message).toBe(
+      "Background of Card's whole component is back to the component's own.",
     )
+    // A name that ends in s takes the apostrophe alone.
+    const tabs = runThemeCommand(start(), {
+      type: "set-style",
+      component: "tabs",
+      name: "Tabs",
+      slot: "tab",
+      property: "fontWeight",
+      value: "bold",
+    })
+    expect(tabs.message).toBe("Font weight of Tabs' tab: bold.")
+    const reset = runThemeCommand(tabs.state, {
+      type: "reset-slot",
+      component: "tabs",
+      name: "Tabs",
+      slot: "tab",
+    })
+    expect(reset.message).toBe("Every style of Tabs' tab is back to the component's own.")
+    expect(reset.state.past.at(-1)?.label).toBe("Reset Tabs' tab")
   })
 
   it("keeps a type it does not know until it is removed", () => {

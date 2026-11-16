@@ -7,6 +7,8 @@ import { AppearanceEditor } from "../appearance/appearance-editor"
 import { useDesigner, useDesignerContext } from "../context"
 import { countInside, type Outline, type OutlineNode } from "../model/schema"
 import { ownerOf } from "../model/settings"
+import { useBoundEntity } from "../binding"
+import { bindingProblemsOf } from "../model/binding"
 import { problemsOf } from "../model/problems"
 import { PanelTitle } from "../panel-title"
 import type { EditorContext } from "./editors"
@@ -78,7 +80,11 @@ function InstanceProperties({ node, outline }: { node: OutlineNode; outline: Out
   const { store } = useDesignerContext()
   const { instance, definition } = node
   const Icon = definition?.icon ?? CircleHelpIcon
-  const problems = problemsOf(node)
+  const bound = useBoundEntity()
+  const problems = React.useMemo(
+    () => [...problemsOf(node), ...bindingProblemsOf(node, bound, store.schema)],
+    [node, bound, store],
+  )
   const epoch = useEpoch()
   // What the theme sets for this kind of component: what an unset style inherits (spec 3.4).
   const themeStyles = React.useContext(ThemeStylesContext)[instance.type]

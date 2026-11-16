@@ -13,11 +13,24 @@ import {
 } from "@/forms/runtime"
 import type { FormDocument } from "@/generated"
 
-import { type Box, type CanvasLayout, EMPTY_LAYOUT, locateOnCanvas, shift } from "./canvas-geometry"
+import {
+  type Box,
+  type CanvasLayout,
+  EMPTY_LAYOUT,
+  locateOnCanvas,
+  outlineAround,
+  placeTag,
+  sameBox,
+  sameSize,
+  shift,
+  type Size,
+} from "./canvas-geometry"
 import {
   EMPTY_ATTRIBUTE,
   ITEM_ATTRIBUTE,
   measureCanvas,
+  measureElement,
+  measureOtherParts,
   measureSlot,
   measureSwitches,
   type RegionSwitch,
@@ -125,9 +138,34 @@ function RegionSlot({ parent, name, isEmpty, children }: DesignRegionProps) {
 }
 
 /** What the canvas draws over the form besides the instances: tabs to switch, and a part pointed at. */
-type Extras = { readonly switches: readonly RegionSwitch[]; readonly highlight: readonly Box[] }
+type Extras = {
+  readonly switches: readonly RegionSwitch[]
+  readonly highlight: readonly Box[]
+  /** Around the part pointed at: what its name tag and its outline keep clear of. */
+  readonly pointed: Pointed | null
+}
 
-const NO_EXTRAS: Extras = { switches: [], highlight: [] }
+type Pointed = {
+  /** The other parts of the same instance. */
+  readonly parts: readonly Box[]
+  /** The instance's name badge, if it is drawn. */
+  readonly badge: Box | null
+  /** The size the name tag draws at. Null until it has been drawn once. */
+  readonly tag: Size | null
+  /** The paper: where there is room for the tag. */
+  readonly paper: Box
+}
+
+const NO_EXTRAS: Extras = { switches: [], highlight: [], pointed: null }
+
+const samePointed = (a: Pointed | null, b: Pointed | null) =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    sameBoxes(a.parts, b.parts) &&
+    (a.badge === b.badge || (a.badge !== null && b.badge !== null && sameBox(a.badge, b.badge))) &&
+    sameSize(a.tag, b.tag) &&
+    sameBox(a.paper, b.paper))
 
 // --- The canvas in design mode -----------------------------------------------------
 
@@ -170,14 +208,26 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
       setLayout(measured)
     }
     const pointed = highlightRef.current
+    const tag = measureElement(origin.querySelector("[data-canvas-slot-tag]"), origin)
+    const paper = origin.getBoundingClientRect()
     const next: Extras = {
       switches: measureSwitches(origin, origin),
       highlight: pointed ? measureSlot(origin, origin, pointed.id, pointed.slot) : [],
+      pointed: pointed && {
+        parts: measureOtherParts(origin, origin, pointed.id, pointed.slot),
+        badge: measureElement(
+          origin.querySelector(`[data-canvas-item="${pointed.id}"] [data-canvas-badge]`),
+          origin,
+        ),
+        tag: tag && { width: tag.width, height: tag.height },
+        paper: { left: 0, top: 0, width: paper.width, height: paper.height },
+      },
     }
     const current = extrasRef.current
     if (
       sameSwitches(current.switches, next.switches) &&
-      sameBoxes(current.highlight, next.highlight)
+      sameBoxes(current.highlight, next.highlight) &&
+      samePointed(current.pointed, next.pointed)
     ) {
       return
     }
@@ -330,30 +380,26 @@ function DesignCanvas({ document: form }: { document: FormDocument }) {
               // oxlint-disable-next-line react/no-array-index-key
               key={index}
               data-testid="canvas-slot-highlight"
-              style={boxStyle(box)}
+              // The outline stops short of the instance's name badge.
+              style={boxStyle(box, outlineAround(box, extras.pointed?.badge ?? null))}
               className={cn(
                 BOXED,
-                "rounded-xs outline-2 outline-offset-2 outline-primary outline-dashed",
+                "rounded-xs outline-2 outline-offset-2 outline-primary outline-dashed [clip-path:var(--box-clip)]",
               )}
-            >
-              {index === 0 && highlight ? (
-                // At the end, where a label never is. Above the part, unless
-                // the part starts at the top of its instance, where the
-                // instance's name badge is: then below it (Phase 4, section 6).
-                <span
-                  data-testid="canvas-slot-tag"
-                  className={cn(
-                    "absolute right-0 rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground",
-                    nearTop(box, layout.items.get(highlight.id))
-                      ? "top-full mt-1"
-                      : "bottom-full mb-1",
-                  )}
-                >
-                  {highlight.slot}
-                </span>
-              ) : null}
-            </div>
+            />
           ))}
+          {highlight && extras.highlight.length > 0 ? (
+            <SlotTag
+              slot={highlight.slot}
+              part={extras.highlight[0]}
+              pointed={extras.pointed}
+              // The instances around the part: not the one it belongs to, nor
+              // a container that holds it.
+              others={[...layout.items]
+                .filter(([id, box]) => id !== highlight.id && !holds(box, extras.highlight[0]))
+                .map(([, box]) => box)}
+            />
+          ) : null}
         </div>
       </div>
     </section>
@@ -369,25 +415,62 @@ type BoxStyle = React.CSSProperties & {
   "--box-top": string
   "--box-width": string
   "--box-height": string
+  "--box-clip"?: string
 }
 
-const boxStyle = (box: Box): BoxStyle => ({
+const boxStyle = (box: Box, clip?: string | null): BoxStyle => ({
   "--box-left": `${box.left}px`,
   "--box-top": `${box.top}px`,
   "--box-width": `${box.width}px`,
   "--box-height": `${box.height}px`,
+  ...(clip === undefined ? {} : { "--box-clip": clip ?? "none" }),
 })
 
-/**
- * How close to its instance's top a part's box may start before its name tag
- * would meet the instance's name badge, in pixels: the badge sits on the
- * instance's top edge, half above it.
- */
-const BADGE_ZONE = 24
+/** Whether a box holds another whole. */
+const holds = (outer: Box, inner: Box) =>
+  outer.left <= inner.left &&
+  outer.top <= inner.top &&
+  outer.left + outer.width >= inner.left + inner.width &&
+  outer.top + outer.height >= inner.top + inner.height
 
-/** Whether a part starts where its instance's name badge is drawn. */
-const nearTop = (part: Box, instance: Box | undefined) =>
-  instance !== undefined && part.top - instance.top < BADGE_ZONE
+/**
+ * The name of the part pointed at, beside the first box the part draws. It
+ * is placed by measuring (Phase 5, section 8): outside the part, and clear of
+ * the instance's other parts and of its name badge. Until its own size is
+ * known it is drawn unseen, to be measured.
+ */
+function SlotTag({
+  slot,
+  part,
+  pointed,
+  others,
+}: {
+  slot: string
+  part: Box
+  pointed: Pointed | null
+  others: readonly Box[]
+}) {
+  const place =
+    pointed?.tag &&
+    placeTag(part, pointed.tag, {
+      keepClear: pointed.badge ? [...pointed.parts, pointed.badge] : pointed.parts,
+      ratherClear: others,
+      within: pointed.paper,
+    })
+  return (
+    <span
+      data-testid="canvas-slot-tag"
+      data-canvas-slot-tag=""
+      style={boxStyle(place ?? { left: 0, top: 0, width: 0, height: 0 })}
+      className={cn(
+        "absolute top-(--box-top) left-(--box-left) rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug whitespace-nowrap text-primary-foreground",
+        !place && "invisible",
+      )}
+    >
+      {slot}
+    </span>
+  )
+}
 
 const BOXED = "absolute top-(--box-top) left-(--box-left) h-(--box-height) w-(--box-width)"
 
@@ -502,6 +585,7 @@ function InstanceProxy({
         <span
           aria-hidden="true"
           data-testid="canvas-name-badge"
+          data-canvas-badge=""
           // A tab on the top edge, at the end where a label never is: it
           // names the selection without covering what is above or inside it.
           className="absolute -top-1 right-2 max-w-full -translate-y-1/2 truncate rounded-sm bg-primary px-1.5 font-mono text-xs leading-snug text-primary-foreground"

@@ -312,3 +312,50 @@ describe("FormStore: reset", () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 })
+
+describe("FormStore: a loaded row (Phase 5)", () => {
+  it("starts each field from the loaded value at its path, else from its default", () => {
+    const store = new FormStore(
+      [
+        spec({ id: "a", path: "surname" }),
+        spec({ id: "b", path: "contact.email", defaultValue: "none" }),
+        spec({ id: "c", path: "count", valueType: "number" }),
+      ],
+      { surname: "Smith", count: 3 },
+    )
+    expect(store.get("a").value).toBe("Smith")
+    expect(store.get("b").value).toBe("none")
+    expect(store.get("c").value).toBe(3)
+    expect(store.values()).toEqual({ surname: "Smith", contact: { email: "none" }, count: 3 })
+  })
+
+  it("starts again from other loaded values, and resets to them", () => {
+    const store = mounted([spec({ id: "a", path: "surname" })])
+    store.load({ surname: "Botha" })
+    expect(store.get("a").value).toBe("Botha")
+    store.setValue("a", "Changed")
+    store.reset()
+    expect(store.get("a").value).toBe("Botha")
+  })
+
+  it("shows problems from outside on the fields bound to their paths, until the value changes", () => {
+    const store = mounted([spec({ id: "a", path: "surname" }), spec({ id: "b", path: "email" })])
+    const result = store.showProblems([
+      { path: "email", message: "Taken" },
+      { path: "nowhere", message: "Lost" },
+    ])
+    expect(result.first).toBe("b")
+    expect(result.unplaced).toEqual([{ path: "nowhere", message: "Lost" }])
+    expect(store.get("b").error).toBe("Taken")
+    // Leaving the field does not make an unfixed problem vanish.
+    store.leave("b")
+    expect(store.get("b").error).toBe("Taken")
+    store.setValue("b", "other@example.com")
+    expect(store.get("b").error).toBeNull()
+  })
+
+  it("gives no problem to a field that is not on screen", () => {
+    const store = new FormStore([spec({ id: "a", path: "surname" })])
+    expect(store.showProblems([{ path: "surname", message: "No" }]).first).toBeNull()
+  })
+})

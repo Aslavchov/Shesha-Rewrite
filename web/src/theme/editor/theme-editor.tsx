@@ -107,6 +107,34 @@ export function ThemeEditor({ state, registry, api, initialMode, onPublished }: 
 
 const isMac = () => /mac/i.test(navigator.platform)
 
+/** On <html>: how much of the top of the page the action bar covers, beside the header. */
+const STICKY_HEIGHT_PROPERTY = "--page-sticky-height"
+
+/**
+ * Tells the page how tall the sticky action bar is, for as long as it is
+ * shown: what is scrolled into view (a field that takes focus) then stops
+ * below the bar, not underneath it, and the preview sticks below it too.
+ * The height is measured: the bar wraps onto more rows in a narrow window.
+ */
+function useStickyHeight() {
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    const bar = ref.current
+    if (!bar) return
+    const root = document.documentElement
+    const tell = () =>
+      root.style.setProperty(STICKY_HEIGHT_PROPERTY, `${bar.getBoundingClientRect().height}px`)
+    tell()
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(tell)
+    observer?.observe(bar)
+    return () => {
+      observer?.disconnect()
+      root.style.removeProperty(STICKY_HEIGHT_PROPERTY)
+    }
+  }, [])
+  return ref
+}
+
 function Workspace({ api, onPublished }: Pick<ThemeEditorProps, "api" | "onPublished">) {
   const { store, autosave } = useThemeEditorContext()
   const status = useThemeSaveStatus()
@@ -245,131 +273,166 @@ function ActionBar({
   const redo = useThemeEditor((snapshot) => snapshot.editor.future.at(-1)?.label)
   const unpublished = !sameTheme(draft, published.document)
   const locked = isConflict || busy !== null
+  const barRef = useStickyHeight()
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card px-4 py-3">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p
-          data-testid="theme-status"
-          data-status={unpublished ? "unpublished" : "published"}
-          className="flex items-center gap-1.5 font-medium text-foreground"
-        >
-          {unpublished ? (
-            <CircleDotIcon aria-hidden="true" className="size-4 shrink-0 text-warning" />
-          ) : (
-            <CheckIcon aria-hidden="true" className="size-4 shrink-0 text-success" />
-          )}
-          {unpublished ? "Unpublished changes" : "Published"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {unpublished
-            ? "Only the preview shows this draft. Publish it to restyle the whole app."
-            : "The whole app uses this theme. Changes are a draft until you publish them."}
-        </p>
-        {failure ? (
-          <p role="alert" data-testid="theme-failure" className="text-xs text-destructive">
-            {failure}
+    // Stays in reach while the page scrolls (Phase 5, section 8): it sticks
+    // below the app's header. The strip around the card is the page's own
+    // background, so nothing that scrolls past shows above or beside it.
+    <div
+      ref={barRef}
+      data-testid="theme-action-bar"
+      className="sticky top-header z-10 -my-2 bg-background py-2"
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card px-4 py-3">
+        {/* Each group keeps a width its text can be read at: when they do not
+            fit side by side they go on rows of their own, whole, and none is
+            squeezed to a word per line. */}
+        <div className="flex min-w-56 flex-1 flex-col gap-0.5">
+          <p
+            data-testid="theme-status"
+            data-status={unpublished ? "unpublished" : "published"}
+            className="flex items-center gap-1.5 font-medium text-foreground"
+          >
+            {unpublished ? (
+              <CircleDotIcon aria-hidden="true" className="size-4 shrink-0 text-warning" />
+            ) : (
+              <CheckIcon aria-hidden="true" className="size-4 shrink-0 text-success" />
+            )}
+            {unpublished ? "Unpublished changes" : "Published"}
           </p>
-        ) : null}
-      </div>
-      <SaveStatusView />
-      <div className="flex flex-wrap items-center gap-1">
-        <IconButton
-          testId="theme-undo"
-          label={undo ? `Undo: ${undo}` : "Undo"}
-          disabled={locked || undo === undefined}
-          onClick={() => store.run({ type: "undo" })}
-        >
-          <Undo2Icon aria-hidden="true" />
-        </IconButton>
-        <IconButton
-          testId="theme-redo"
-          label={redo ? `Redo: ${redo}` : "Redo"}
-          disabled={locked || redo === undefined}
-          onClick={() => store.run({ type: "redo" })}
-        >
-          <Redo2Icon aria-hidden="true" />
-        </IconButton>
-        <Button
-          variant="ghost"
-          data-testid="theme-reset-default"
-          disabled={locked || isBuiltIn(draft)}
-          onClick={() =>
-            store.run({
-              type: "replace",
-              document: EMPTY_THEME,
-              label: "Reset to the default look",
-            })
-          }
-        >
-          <RotateCcwIcon aria-hidden="true" data-icon="inline-start" />
-          Reset to default
-        </Button>
-        <Button
-          variant="outline"
-          data-testid="theme-discard"
-          disabled={locked || !unpublished}
-          onClick={onDiscard}
-        >
-          Discard
-        </Button>
-        <Button data-testid="theme-publish" disabled={locked || !unpublished} onClick={onPublish}>
-          {busy === "publish" ? (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              data-icon="inline-start"
-              className="animate-spin motion-reduce:animate-none"
-            />
-          ) : (
-            <UploadIcon aria-hidden="true" data-icon="inline-start" />
-          )}
-          Publish
-        </Button>
+          <p data-testid="theme-status-note" className="text-xs text-muted-foreground">
+            {unpublished
+              ? "Only the preview shows this draft. Publish it to restyle the whole app."
+              : "The whole app uses this theme. Changes are a draft until you publish them."}
+          </p>
+          {failure ? (
+            <p role="alert" data-testid="theme-failure" className="text-xs text-destructive">
+              {failure}
+            </p>
+          ) : null}
+        </div>
+        <SaveStatusView />
+        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-1">
+          <BarButton
+            icon
+            testId="theme-undo"
+            label={undo ? `Undo: ${undo}` : "Undo"}
+            disabled={locked || undo === undefined}
+            onClick={() => store.run({ type: "undo" })}
+          >
+            <Undo2Icon aria-hidden="true" />
+          </BarButton>
+          <BarButton
+            icon
+            testId="theme-redo"
+            label={redo ? `Redo: ${redo}` : "Redo"}
+            disabled={locked || redo === undefined}
+            onClick={() => store.run({ type: "redo" })}
+          >
+            <Redo2Icon aria-hidden="true" />
+          </BarButton>
+          <BarButton
+            variant="ghost"
+            testId="theme-reset-default"
+            disabled={locked || isBuiltIn(draft)}
+            onClick={() =>
+              store.run({
+                type: "replace",
+                document: EMPTY_THEME,
+                label: "Reset to the default look",
+              })
+            }
+          >
+            <RotateCcwIcon aria-hidden="true" data-icon="inline-start" />
+            Reset to default
+          </BarButton>
+          <BarButton
+            variant="outline"
+            testId="theme-discard"
+            disabled={locked || !unpublished}
+            onClick={onDiscard}
+          >
+            Discard
+          </BarButton>
+          <BarButton
+            variant="default"
+            testId="theme-publish"
+            disabled={locked || !unpublished}
+            onClick={onPublish}
+          >
+            {busy === "publish" ? (
+              <LoaderCircleIcon
+                aria-hidden="true"
+                data-icon="inline-start"
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <UploadIcon aria-hidden="true" data-icon="inline-start" />
+            )}
+            Publish
+          </BarButton>
+        </div>
+        <SaveProblem />
       </div>
     </div>
   )
 }
 
-function IconButton({
+/**
+ * A button of the action bar. Every one of them can make itself unavailable:
+ * Publish and Discard once there is nothing unpublished, Reset once the look
+ * is the built-in one, Undo at the last step. A button with the `disabled`
+ * attribute cannot hold focus, so the browser would drop focus to the page
+ * and a keyboard user would start again from the top (Phase 5, section 8).
+ *
+ * So an unavailable button says so with `aria-disabled` and does nothing,
+ * and focus stays where the person put it: on the button they pressed. That
+ * is better than moving focus to a neighbour, which would be a jump nobody
+ * asked for and would read out another button's name in place of the result;
+ * the result itself ("Published…") is said by the live region.
+ */
+function BarButton({
   testId,
   label,
+  icon = false,
+  variant = "ghost",
   disabled,
   onClick,
   children,
 }: {
   testId: string
-  label: string
+  /** The name of a button that shows only an icon; also its tooltip. */
+  label?: string
+  icon?: boolean
+  variant?: "default" | "outline" | "ghost"
   disabled: boolean
   onClick: () => void
   children: React.ReactNode
 }) {
+  const button = (
+    <Button
+      variant={variant}
+      size={icon ? "icon" : "default"}
+      data-testid={testId}
+      aria-label={label}
+      aria-disabled={disabled || undefined}
+      onClick={disabled ? undefined : onClick}
+    />
+  )
+  if (label === undefined) return React.cloneElement(button, {}, children)
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            data-testid={testId}
-            aria-label={label}
-            // Focusable while disabled, so that focus is not lost when the last step is undone.
-            aria-disabled={disabled || undefined}
-            onClick={disabled ? undefined : onClick}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
+      <TooltipTrigger render={button}>{children}</TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   )
 }
 
-/** Whether the draft is saved on the server. */
+/** That the draft is saved on the server, or on its way there. */
 function SaveStatusView() {
-  const { autosave } = useThemeEditorContext()
   const status = useThemeSaveStatus()
-  const common = "flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+  const common = "flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
 
   if (status.kind === "saved") {
     return (
@@ -390,17 +453,31 @@ function SaveStatusView() {
       </p>
     )
   }
+  return null
+}
+
+/**
+ * Why the draft is not saved. A reason can be long, so it has a row of its
+ * own under the bar's other parts, as wide as the bar: it never takes their
+ * room, and they never squeeze it to a word per line (Phase 5, section 8).
+ * It comes after the buttons in the document too, so that Retry is reached
+ * in the order it is seen.
+ */
+function SaveProblem() {
+  const { autosave } = useThemeEditorContext()
+  const status = useThemeSaveStatus()
+  if (status.kind !== "failed" && status.kind !== "conflict") return null
   const reason =
     status.kind === "conflict" ? "the theme was changed somewhere else." : status.reason
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 basis-full items-center gap-2 border-t pt-2">
       <p
         data-testid="theme-save-status"
         data-status={status.kind === "conflict" ? "conflict" : "error"}
-        className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-destructive"
+        className="flex min-w-0 flex-1 items-start gap-1.5 text-xs font-medium text-destructive"
       >
-        <TriangleAlertIcon aria-hidden="true" className="size-3.5 shrink-0" />
-        <span>Not saved: {reason}</span>
+        <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+        <span className="min-w-0 wrap-break-word">Not saved: {reason}</span>
       </p>
       {status.kind === "failed" ? (
         <Button

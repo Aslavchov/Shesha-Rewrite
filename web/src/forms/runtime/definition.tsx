@@ -1,7 +1,7 @@
 import type * as React from "react"
 import type { LucideIcon } from "lucide-react"
 
-import type { ComponentInstance } from "@/generated"
+import type { ComponentInstance, PropertyDefinition } from "@/generated"
 
 import type { FieldApi, FormActions } from "./context"
 import { ContainerHost, InputHost, StaticHost } from "./hosts"
@@ -29,7 +29,7 @@ import { isValueOfType, type ValueType, type ValueTypes } from "./values"
 export type FormMode = "edit" | "read-only"
 
 /** Where the component palette (Phase 2) lists a component. */
-export type ComponentCategory = "input" | "layout" | "content" | "action"
+export type ComponentCategory = "input" | "data" | "layout" | "content" | "action"
 
 /** The parts of an instance a renderer may use. Never the raw settings. */
 export type InstanceInfo = { readonly id: string; readonly name: string }
@@ -111,7 +111,17 @@ export type InputSpec<VT extends ValueType, S extends SettingsSchema, Slot exten
   readonly rules: readonly Rule<ValueTypes[VT], SettingsOf<S>>[]
   readonly Edit: React.ComponentType<InputEditProps<VT, S, Slot>>
   readonly ReadOnly: React.ComponentType<InputReadOnlyProps<VT, S, Slot>>
+  /**
+   * Makes this the component an entity property of some kind is edited with
+   * (Phase 5, ADR 0011): given a property, the settings a new instance bound
+   * to it stores, or null when this is not the component for it. Only what
+   * differs from the defaults (ADR 0003, D5).
+   */
+  readonly forProperty?: (property: PropertyDefinition) => StoredSettingsOf<S> | null
 }
+
+/** Stored settings of a schema: any of its keys, as the JSON a document holds. */
+export type StoredSettingsOf<S extends SettingsSchema> = { readonly [K in keyof S]?: unknown }
 
 export type ContainerSpec<S extends SettingsSchema, Slot extends string> = Meta<S, Slot> & {
   /** The names of the regions an instance with these settings has. */
@@ -189,6 +199,12 @@ export type ComponentDefinition = {
    * this before a value reaches the document. Added in Phase 3 (ADR 0009).
    */
   readonly checkSettings: (stored: Readonly<Record<string, unknown>>) => readonly SettingProblem[]
+  /**
+   * Inputs that edit entity properties: the stored settings of a new
+   * instance bound to `property`, or null when this component is not the one
+   * for it. Added in Phase 5 (ADR 0011).
+   */
+  readonly forProperty?: (property: PropertyDefinition) => Readonly<Record<string, unknown>> | null
 }
 
 function meta<S extends SettingsSchema, Slot extends string>(spec: Meta<S, Slot>) {
@@ -253,6 +269,7 @@ export function defineInput<
     settings: hasRules ? { ...spec.settings, messages: messagesSetting } : spec.settings,
     valueType: spec.valueType,
     rules: spec.rules.map((rule) => ({ id: rule.id, label: rule.label })),
+    ...(spec.forProperty ? { forProperty: spec.forProperty } : {}),
     checkSettings(stored) {
       const { messages, ...own } = stored
       const problems: InstanceProblem[] = []

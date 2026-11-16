@@ -6,6 +6,8 @@ import { BrandMark } from "@/app/layout/brand-mark"
 import { type SegmentedOption, SegmentedSwitch } from "@/components/segmented-switch"
 import { Button } from "@/components/ui/button"
 import { slotLabel } from "@/designer/appearance/colours"
+import { placeTag, sameSize, type Size } from "@/designer/canvas-geometry"
+import { inkOf } from "@/designer/canvas-measure"
 import { FormRenderer, SLOT_ATTRIBUTE } from "@/forms/runtime"
 import { APP_NAME } from "@/generated"
 
@@ -31,8 +33,21 @@ const boxStyle = (box: Box): BoxStyle => ({
   "--box-height": `${box.height}px`,
 })
 
-/** The height a part's name tag needs above the part, in pixels. */
-const TAG_ROOM = 24
+/** The part pointed at, as it is drawn in the preview's page, and what is around it. */
+type Pointed = {
+  /** One box per element that is the part. */
+  readonly boxes: readonly Box[]
+  /** The sample's other parts: what the part's name tag must not cover. */
+  readonly others: readonly Box[]
+  /** All of the page, scrolled or not: where there is room for the tag. */
+  readonly page: Box
+}
+
+const NOTHING_POINTED: Pointed = {
+  boxes: [],
+  others: [],
+  page: { left: 0, top: 0, width: 0, height: 0 },
+}
 
 const sameBoxes = (a: readonly Box[], b: readonly Box[]) =>
   a.length === b.length &&
@@ -58,7 +73,9 @@ export function ThemePreview() {
   const slot = useThemeEditor((snapshot) => snapshot.highlight)
   const form = React.useMemo(() => sampleForm(registry), [registry])
   const frameRef = React.useRef<HTMLDivElement>(null)
-  const [boxes, setBoxes] = React.useState<readonly Box[]>([])
+  const [pointed, setPointed] = React.useState(NOTHING_POINTED)
+  const tagRef = React.useRef<HTMLSpanElement>(null)
+  const [tagSize, setTagSize] = React.useState<Size | null>(null)
 
   /** The sample of the component being styled, if it is on the page. */
   const sampleOf = React.useCallback((type: string | null) => {
@@ -85,37 +102,92 @@ export function ThemePreview() {
   React.useLayoutEffect(() => {
     const frame = frameRef.current
     const sample = sampleOf(component)
-    const next: Box[] = []
+    let next = NOTHING_POINTED
     if (frame && sample && slot !== null) {
       const from = frame.getBoundingClientRect()
-      const parts =
-        sample.getAttribute(SLOT_ATTRIBUTE) === slot
-          ? [sample]
-          : [...sample.querySelectorAll(`[${SLOT_ATTRIBUTE}="${slot}"]`)].filter(
-              // Not the parts of a component held inside this one: the
-              // nearest component root around a part is this sample's.
-              (part) => part.parentElement?.closest(`[${SLOT_ATTRIBUTE}="root"]`) === sample,
-            )
-      for (const part of parts) {
+      const boxOf = (part: Element): Box | null => {
         const box = part.getBoundingClientRect()
-        if (box.width === 0 && box.height === 0) continue
-        next.push({
+        if (box.width === 0 && box.height === 0) return null
+        return {
           left: box.left - from.left + frame.scrollLeft,
           top: box.top - from.top + frame.scrollTop,
           width: box.width,
           height: box.height,
-        })
+        }
+      }
+      // The sample's own parts, not those of a component held inside it: the
+      // nearest component root around a part is this sample's.
+      const own = [sample, ...sample.querySelectorAll(`[${SLOT_ATTRIBUTE}]`)].filter(
+        (part) =>
+          part === sample || part.parentElement?.closest(`[${SLOT_ATTRIBUTE}="root"]`) === sample,
+      )
+      const parts = own.filter(
+        (part) => part.getAttribute(SLOT_ATTRIBUTE) === slot && boxOf(part) !== null,
+      )
+      // The tag belongs to the first. What is around it, or inside it, is not in its way.
+      const tagged = parts.at(0)
+      const others = own.filter(
+        (part) =>
+          part.hasAttribute(SLOT_ATTRIBUTE) &&
+          part !== tagged &&
+          !(tagged && (part.contains(tagged) || tagged.contains(part))),
+      )
+      const drawn = (boxes: readonly (Box | null)[]) =>
+        boxes.filter((box): box is Box => box !== null)
+      // Another part is in the way only as far as it is drawn: beside a short label is free.
+      const inkIn = (part: Element): Box | null => {
+        const ink = inkOf(part)
+        return (
+          ink && {
+            ...ink,
+            left: ink.left - from.left + frame.scrollLeft,
+            top: ink.top - from.top + frame.scrollTop,
+          }
+        )
+      }
+      next = {
+        boxes: drawn(parts.map(boxOf)),
+        others: drawn(others.map(inkIn)),
+        page: { left: 0, top: 0, width: frame.scrollWidth, height: frame.scrollHeight },
       }
     }
     // Measuring the page is reading something outside React; the result is state.
     // oxlint-disable-next-line react/set-state-in-effect
-    setBoxes((current) => (sameBoxes(current, next) ? current : next))
+    setPointed((current) =>
+      sameBoxes(current.boxes, next.boxes) &&
+      sameBoxes(current.others, next.others) &&
+      sameBoxes([current.page], [next.page])
+        ? current
+        : next,
+    )
     // `theme` and `mode` are not read here, but either can move every part.
     // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [component, slot, theme, mode, sampleOf])
 
+  // The tag is placed by its size, which is only known once it is drawn.
+  React.useLayoutEffect(() => {
+    const box = tagRef.current?.getBoundingClientRect()
+    const next = box ? { width: box.width, height: box.height } : null
+    // oxlint-disable-next-line react/set-state-in-effect
+    setTagSize((current) => (sameSize(current, next) ? current : next))
+    // None is read here: each is something that draws the tag, or changes its size.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
+  }, [slot, theme, mode, pointed])
+
+  const { boxes } = pointed
+  // Outside the part, and clear of the sample's other parts (Phase 5, section 8).
+  const tagPlace =
+    boxes.length > 0 && tagSize
+      ? placeTag(boxes[0], tagSize, { keepClear: pointed.others, within: pointed.page })
+      : null
+
   return (
-    <section aria-label="Preview" className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-20">
+    <section
+      aria-label="Preview"
+      // Beside the controls it stays in view, below the header and the action bar.
+      // No taller than what is left of the window, so that all of it can be reached.
+      className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-[calc(var(--sys-size-header)+var(--page-sticky-height,0px)+var(--sys-space-md))] lg:max-h-[calc(100dvh-var(--sys-size-header)-var(--page-sticky-height,0px)-2*var(--sys-space-md))]"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <h2 className="font-heading text-base font-medium text-foreground">Preview</h2>
@@ -138,9 +210,9 @@ export function ThemePreview() {
         // To look at, not to use: nothing in it takes focus or a click.
         inert
         aria-label={`The draft theme in ${mode} mode`}
-        className="relative overflow-hidden rounded-xl border shadow-sm"
+        className="relative flex min-h-0 flex-col overflow-hidden rounded-xl border shadow-sm"
       >
-        <div className="flex min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-1">
           <div
             data-testid="theme-preview-sidebar"
             className="hidden w-36 shrink-0 flex-col gap-3 border-r border-sidebar-border bg-sidebar p-3 text-sidebar-foreground sm:flex"
@@ -221,20 +293,22 @@ export function ThemePreview() {
                 data-testid="theme-slot-highlight"
                 style={boxStyle(box)}
                 className="pointer-events-none absolute top-(--box-top) left-(--box-left) h-(--box-height) w-(--box-width) rounded-xs outline-2 outline-offset-2 outline-primary outline-dashed"
-              >
-                {index === 0 && slot !== null ? (
-                  <span
-                    className={cn(
-                      "absolute right-0 rounded-sm bg-primary px-1.5 text-xs leading-snug whitespace-nowrap text-primary-foreground",
-                      // Below the part when there is no room above it inside the preview.
-                      box.top < TAG_ROOM ? "top-full mt-1" : "bottom-full mb-1",
-                    )}
-                  >
-                    {slotLabel(slot)}
-                  </span>
-                ) : null}
-              </div>
+              />
             ))}
+            {slot !== null && boxes.length > 0 ? (
+              <span
+                ref={tagRef}
+                data-testid="theme-slot-tag"
+                style={boxStyle(tagPlace ?? { left: 0, top: 0, width: 0, height: 0 })}
+                className={cn(
+                  "pointer-events-none absolute top-(--box-top) left-(--box-left) rounded-sm bg-primary px-1.5 text-xs leading-snug whitespace-nowrap text-primary-foreground",
+                  // Drawn unseen until its size is known and it can be placed.
+                  !tagPlace && "invisible",
+                )}
+              >
+                {slotLabel(slot)}
+              </span>
+            ) : null}
           </div>
         </div>
       </ThemeScope>

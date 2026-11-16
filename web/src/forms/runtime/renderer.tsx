@@ -10,7 +10,7 @@ import type { DesignSurface } from "./design"
 import { GAP_CLASS } from "./layout"
 import { buildModel, type FormModel, type FormNode } from "./model"
 import { ComponentBoundary, ComponentError, UnknownComponent } from "./placeholders"
-import { FormStore } from "./store"
+import { FormStore, type PathProblem } from "./store"
 import type { NestedValues } from "./values"
 
 export type FormRendererProps = {
@@ -20,6 +20,11 @@ export type FormRendererProps = {
   mode: FormMode
   /** Called with the values, nested by data path, when a submit is valid. */
   onSubmit?: (values: NestedValues) => void
+  /**
+   * Like `onSubmit`, for a host that stores the values: it is also handed
+   * the way to show what the server made of them (Phase 5, ADR 0011).
+   */
+  onSave?: (values: NestedValues, form: SubmittedForm) => void
   /** Called after the form was reset to its defaults. */
   onReset?: () => void
   /**
@@ -28,6 +33,27 @@ export type FormRendererProps = {
    * the surface, and the form cannot be submitted (ADR 0008).
    */
   design?: DesignSurface
+  /**
+   * The values the form opens with, nested by data path: a loaded row
+   * (Phase 5, ADR 0011). A field without one starts from its default. When
+   * another object is given, the form starts again from it.
+   */
+  values?: NestedValues
+  /**
+   * Data paths whose inputs are shown read-only whatever the mode: the
+   * read-only properties of a bound form's entity.
+   */
+  readOnlyPaths?: ReadonlySet<string>
+}
+
+/** What a host can do with a form after a valid submit. */
+export type SubmittedForm = {
+  /**
+   * Shows problems found with the submitted values on the fields bound to
+   * their paths, and moves focus to the first. Returns the problems no field
+   * on screen could take, for the host to show itself.
+   */
+  readonly showProblems: (problems: readonly PathProblem[]) => readonly PathProblem[]
 }
 
 /** The name the form's own top-level list goes by where a region needs one. */
@@ -55,9 +81,9 @@ type Prepared = {
   readonly store: FormStore
 }
 
-function prepare(form: FormDocument, registry: Registry): Prepared {
+function prepare(form: FormDocument, registry: Registry, values?: NestedValues): Prepared {
   const model = buildModel(form, registry)
-  return { form, registry, model, store: new FormStore(model.fields) }
+  return { form, registry, model, store: new FormStore(model.fields, values) }
 }
 
 function KnownForm({
@@ -66,25 +92,37 @@ function KnownForm({
   mode,
   onSubmit,
   onReset,
+  onSave,
   design,
+  values,
+  readOnlyPaths,
 }: FormRendererProps) {
   const uid = React.useId()
 
   // State, not a memo: the store holds what a person has typed, so it must
   // live exactly as long as the document it was built for.
-  const [prepared, setPrepared] = React.useState(() => prepare(form, registry))
+  const [prepared, setPrepared] = React.useState(() => prepare(form, registry, values))
   let current = prepared
   if (prepared.form !== form || prepared.registry !== registry) {
-    current = prepare(form, registry)
+    current = prepare(form, registry, values)
     setPrepared(current)
   }
   const { model, store } = current
 
+  // Other loaded values (the row as saved, or reloaded): the same store
+  // starts again from them, so focus and the page stay where they are.
+  const loaded = React.useRef(values)
+  React.useEffect(() => {
+    if (loaded.current === values) return
+    loaded.current = values
+    store.load(values)
+  }, [store, values])
+
   // The handlers are read through a ref so that the context value, and with
   // it every field, does not change when the host passes new functions.
-  const handlers = React.useRef({ onSubmit, onReset })
+  const handlers = React.useRef({ onSubmit, onReset, onSave })
   React.useEffect(() => {
-    handlers.current = { onSubmit, onReset }
+    handlers.current = { onSubmit, onReset, onSave }
   })
 
   const context = React.useMemo<FormContextValue>(() => {
@@ -92,6 +130,15 @@ function KnownForm({
       const result = store.submit()
       if (result.valid) {
         handlers.current.onSubmit?.(result.values)
+        handlers.current.onSave?.(result.values, {
+          showProblems(problems) {
+            const { first, unplaced } = store.showProblems(problems)
+            if (first !== null) {
+              revealAndFocus(window.document.getElementById(controlId(uid, first)))
+            }
+            return unplaced
+          },
+        })
       } else {
         revealAndFocus(window.document.getElementById(controlId(uid, result.firstInvalid)))
       }
@@ -137,7 +184,7 @@ function KnownForm({
     )
   }
 
-  const content = <NodeList nodes={model.nodes} mode={mode} />
+  const content = <NodeList nodes={model.nodes} mode={mode} readOnlyPaths={readOnlyPaths} />
 
   return (
     <FormContext value={context}>
@@ -165,11 +212,22 @@ function KnownForm({
   )
 }
 
-type NodeProps = { mode: FormMode; design?: DesignSurface }
+type NodeProps = { mode: FormMode; design?: DesignSurface; readOnlyPaths?: ReadonlySet<string> }
 
-function NodeList({ nodes, mode, design }: NodeProps & { nodes: readonly FormNode[] }) {
+function NodeList({
+  nodes,
+  mode,
+  design,
+  readOnlyPaths,
+}: NodeProps & { nodes: readonly FormNode[] }) {
   return nodes.map((node) => (
-    <NodeView key={node.instance.id} node={node} mode={mode} design={design} />
+    <NodeView
+      key={node.instance.id}
+      node={node}
+      mode={mode}
+      design={design}
+      readOnlyPaths={readOnlyPaths}
+    />
   ))
 }
 
@@ -177,8 +235,9 @@ const NodeView = React.memo(function NodeView({
   node,
   mode,
   design,
+  readOnlyPaths,
 }: NodeProps & { node: FormNode }) {
-  const rendered = renderNode(node, mode, design)
+  const rendered = renderNode(node, mode, design, readOnlyPaths)
   if (!design) return rendered
   return (
     <design.Instance
@@ -190,7 +249,12 @@ const NodeView = React.memo(function NodeView({
   )
 })
 
-function renderNode(node: FormNode, mode: FormMode, design: DesignSurface | undefined) {
+function renderNode(
+  node: FormNode,
+  mode: FormMode,
+  design: DesignSurface | undefined,
+  readOnlyPaths: ReadonlySet<string> | undefined,
+) {
   if (node.kind === "unknown") return <UnknownComponent instance={node.instance} />
   if (node.kind === "broken") {
     return <ComponentError instance={node.instance}>{node.message}</ComponentError>
@@ -198,10 +262,15 @@ function renderNode(node: FormNode, mode: FormMode, design: DesignSurface | unde
   return (
     <ComponentBoundary instance={node.instance}>
       {node.prepared.render(
-        mode,
+        // An input bound to a read-only property shows its value and no control.
+        node.instance.bind !== undefined && readOnlyPaths?.has(node.instance.bind)
+          ? "read-only"
+          : mode,
         (name) => {
           const children = node.regions.get(name) ?? []
-          const list = <NodeList nodes={children} mode={mode} design={design} />
+          const list = (
+            <NodeList nodes={children} mode={mode} design={design} readOnlyPaths={readOnlyPaths} />
+          )
           if (!design) return list
           return (
             <design.Region parent={node.instance} name={name} isEmpty={children.length === 0}>

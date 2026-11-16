@@ -5,9 +5,24 @@
 //! `cargo run -p contracts --bin generate-types`.
 
 pub mod codegen;
+pub mod data;
+pub mod entities;
 pub mod forms;
 pub mod themes;
 
+pub use data::{
+    CreateRowRequest, DATA_DEFAULT_PAGE_SIZE, DATA_MAX_FILTERS, DATA_MAX_PAGE_SIZE,
+    DATA_MAX_SEARCH_CHARS, DATA_MAX_SORTS, DataFilter, DataPage, DataQuery, DataRow, DataSort,
+    DataValues, FilterOp, SortDirection, UpdateRowRequest,
+};
+pub use entities::{
+    CreateEntityRequest, CreateReferenceListRequest, DEFINITION_MAX_DISPLAY_NAME_CHARS,
+    DEFINITION_MAX_HELP_TEXT_CHARS, DEFINITION_MAX_NAME_CHARS, ENTITY_MAX_PROPERTIES,
+    EntityDefinition, EntityList, EntityRecord, ITEM_COLORS, ItemColor, PropertyDefinition,
+    PropertyType, REFERENCE_LIST_MAX_ITEMS, ReferenceListDefinition, ReferenceListItem,
+    ReferenceListList, ReferenceListRecord, SYSTEM_PROPERTIES, TEXT_MAX_LENGTH,
+    UpdateEntityRequest, UpdateReferenceListRequest,
+};
 pub use forms::{
     ColorToken, ColorValue, ComponentInstance, CreateFormRequest, FORM_FORMAT_VERSION, FontWeight,
     FormDocument, FormList, FormRecord, FormSummary, MAX_JSON_DEPTH, MAX_REQUEST_BYTES, Radius,

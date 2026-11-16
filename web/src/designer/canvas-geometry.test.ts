@@ -7,8 +7,11 @@ import {
   type Box,
   type CanvasLayout,
   locateOnCanvas,
+  outlineAround,
+  placeTag,
   regionKey,
   type RegionLayout,
+  TAG_GAP,
 } from "./canvas-geometry"
 import { columns, container, field, form, schema } from "./testing/documents"
 
@@ -211,5 +214,106 @@ describe("where the drop indicator is drawn", () => {
     const { place } = sample()
     expect(place(100, 90)?.region).toEqual(box(0, 56, 192, 100))
     expect(place(200, 48)?.region).toBeNull()
+  })
+})
+
+describe("the name tag of a part that is pointed at (Phase 5, section 8)", () => {
+  const tag = { width: 40, height: 16 }
+  const paper = { left: 0, top: 0, width: 400, height: 600 }
+  const overlaps = (a: Box, b: Box) =>
+    a.left < b.left + b.width &&
+    b.left < a.left + a.width &&
+    a.top < b.top + b.height &&
+    b.top < a.top + a.height
+
+  // A field at 20,100: a narrow label, the control below it, help text below that.
+  const instance = { left: 20, top: 100, width: 360, height: 90 }
+  const label = { left: 20, top: 100, width: 60, height: 18 }
+  const control = { left: 20, top: 126, width: 360, height: 32 }
+  const help = { left: 20, top: 166, width: 360, height: 24 }
+  /** The badge sits on the instance's top edge, at its end. */
+  const badge = { left: 320, top: 88, width: 52, height: 16 }
+
+  it("goes above the part, at its end, when nothing is in the way", () => {
+    const place = placeTag(control, tag, { keepClear: [], within: paper })
+    expect(place).toEqual({ left: 340, top: 126 - TAG_GAP - 16, ...tag })
+  })
+
+  it("never covers the control when the label is pointed at", () => {
+    // Above the label is the instance before; below it is the control.
+    const before = { left: 20, top: 0, width: 360, height: 92 }
+    const place = placeTag(label, tag, {
+      keepClear: [control, help, badge],
+      ratherClear: [before],
+      within: paper,
+    })
+    expect(overlaps(place, control)).toBe(false)
+    expect(overlaps(place, before)).toBe(false)
+    // Beside the label, on its own line.
+    expect(place).toEqual({ left: 80 + TAG_GAP, top: 100, ...tag })
+  })
+
+  it("keeps clear of the name badge when the whole component is pointed at", () => {
+    const place = placeTag(instance, tag, { keepClear: [badge], within: paper })
+    expect(overlaps(place, badge)).toBe(false)
+    expect(overlaps(place, instance)).toBe(false)
+    expect(place.top).toBe(190 + TAG_GAP)
+  })
+
+  it("keeps clear of the part's other parts, whichever is pointed at", () => {
+    for (const part of [label, control, help]) {
+      const others = [label, control, help].filter((other) => other !== part)
+      const place = placeTag(part, tag, { keepClear: [...others, badge], within: paper })
+      for (const other of [...others, badge, part]) expect(overlaps(place, other)).toBe(false)
+    }
+  })
+
+  it("stays on the paper", () => {
+    // A part across the top of the paper: no room above it.
+    const top = { left: 0, top: 0, width: 400, height: 30 }
+    const place = placeTag(top, tag, { keepClear: [], within: paper })
+    expect(place.top).toBe(30 + TAG_GAP)
+    expect(place.left).toBe(360)
+  })
+
+  it("would rather cover something than leave the paper", () => {
+    // A control as wide as the paper, a label above it and help text below.
+    const wide = { left: 0, top: 126, width: 400, height: 32 }
+    const place = placeTag(wide, tag, {
+      keepClear: [
+        { left: 0, top: 100, width: 400, height: 18 },
+        { left: 0, top: 166, width: 400, height: 24 },
+      ],
+      within: paper,
+    })
+    expect(place.left).toBeGreaterThanOrEqual(0)
+    expect(place.left + place.width).toBeLessThanOrEqual(400)
+  })
+
+  it("covers as little as it can when no place is free", () => {
+    const all = { left: -100, top: -100, width: 1000, height: 1000 }
+    const end = { left: 300, top: 0, width: 100, height: 600 }
+    // Everything is taken, and the end twice: above the control, at its start.
+    const place = placeTag(control, tag, { keepClear: [all, end], within: paper })
+    expect(place).toEqual({ left: 20, top: 126 - TAG_GAP - 16, ...tag })
+  })
+})
+
+describe("a part's outline and the name badge (Phase 5, section 8)", () => {
+  const instance = { left: 20, top: 100, width: 360, height: 90 }
+  const badge = { left: 320, top: 88, width: 52, height: 16 }
+
+  it("is cut around the badge when the outline would run through it", () => {
+    // In the part's own coordinates: the badge is 300 to 352 across, -12 to 4 down.
+    expect(outlineAround(instance, badge)).toBe(
+      "polygon(evenodd, -6px -6px, 366px -6px, 366px 96px, -6px 96px, -6px -6px, " +
+        "298px -14px, 354px -14px, 354px 6px, 298px 6px, 298px -14px, -6px -6px)",
+    )
+  })
+
+  it("is left whole when the badge is nowhere near, or not drawn", () => {
+    const control = { left: 20, top: 126, width: 360, height: 32 }
+    expect(outlineAround(control, badge)).toBeNull()
+    expect(outlineAround(instance, null)).toBeNull()
   })
 })

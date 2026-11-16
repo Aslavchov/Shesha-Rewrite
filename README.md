@@ -8,6 +8,8 @@ This repository is the v1 prototype, built in phases (see the [roadmap](docs/roa
 - **Phase 1** defines what a form is and renders it: the form document format, the component contract, ten components, validation, edit and read-only modes, and forms stored on the server and listed on the Forms page.
 - **Phase 2** is the designer's canvas: create a form, drag components onto it, nest them, rearrange them, and it saves itself. Everything works from the keyboard too.
 - **Phase 3** makes components configurable: a properties panel generated from each component's definition edits its name, data path, settings and styles, live on the canvas and undoable, and says what is wrong with a form and how to fix it. Five components join: Card, Tabs, Text, Alert and Radio group.
+- **Phase 4** adds the theme: colours, roundness, text size, density and a default look per component, edited as a draft with a live preview and published to the whole app.
+- **Phase 5** turns forms into CRUD screens: entities and reference lists defined in the app, a data API for every entity, forms bound to an entity that load and save a row, and four components: Data table, Reference-list select, Entity picker and Status tag.
 
 "Shesha 2.0" and the binary name `shesha2` are working names.
 
@@ -206,6 +208,7 @@ Pull requests and pushes to `main` run the checks, the Linux build with its smok
 - [Phase 2 spec](docs/specs/phase-2.md) and [Phase 2 report](docs/reports/phase-2.md)
 - [Phase 3 spec](docs/specs/phase-3.md) and [Phase 3 report](docs/reports/phase-3.md)
 - [Phase 4 spec](docs/specs/phase-4.md) and [Phase 4 report](docs/reports/phase-4.md)
+- [Phase 5 spec](docs/specs/phase-5.md) and [Phase 5 report](docs/reports/phase-5.md)
 - [ADR 0001: the stack](docs/adr/0001-stack.md)
 - [ADR 0002: design tokens](docs/adr/0002-tokens.md)
 - [ADR 0003: the form document format](docs/adr/0003-form-document.md)
@@ -216,3 +219,4 @@ Pull requests and pushes to `main` run the checks, the Linux build with its smok
 - [ADR 0008: the designer](docs/adr/0008-designer.md)
 - [ADR 0009: properties and styles](docs/adr/0009-properties-and-styles.md)
 - [ADR 0010: themes](docs/adr/0010-themes.md)
+- [ADR 0011: entities and data](docs/adr/0011-entities-and-data.md)

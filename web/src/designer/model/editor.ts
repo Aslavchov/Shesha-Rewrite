@@ -1,8 +1,8 @@
 import { slotStyle } from "@/forms/runtime"
-import type { ComponentInstance, FormDocument, SlotStyle } from "@/generated"
+import type { ComponentInstance, FormDocument, PropertyDefinition, SlotStyle } from "@/generated"
 
 import { createId, cryptoRandom, type RandomIndex } from "./ids"
-import { type Taken, takeName } from "./names"
+import { pathsClash, type Taken, takeName } from "./names"
 import { applyOperation, type Operation, type Refusal } from "./operations"
 import { countInside, type Outline, type OutlineNode, regionAt, type Schema } from "./schema"
 import { FORM_OWNER, ownerOf, type SettingsOwner, settingProblem } from "./settings"
@@ -58,7 +58,17 @@ export function createEditorState(document: FormDocument): EditorState {
 
 export type Command =
   /** A new instance of a component type. Without `at`: after the selection, or at the end of the form. */
-  | { readonly type: "add"; readonly component: string; readonly at?: Position }
+  | {
+      readonly type: "add"
+      readonly component: string
+      readonly at?: Position
+      /**
+       * The entity property the instance is for (Phase 5, ADR 0011). It is
+       * then bound to the property, named after it when that name is free,
+       * and starts with the settings its component takes from the property.
+       */
+      readonly property?: PropertyDefinition
+    }
   /** `to.index` counts the region without the instance (see `Operation`). */
   | { readonly type: "move"; readonly id: string; readonly to: Position }
   /** One place up or down in document order, into and out of containers. */
@@ -281,21 +291,35 @@ export function runCommand(
       if (!definition) return nothing(`There is no component type "${command.component}".`)
 
       const bound = definition.kind === "input"
-      const name = takeName(command.component, bound, takenIn(state.document))
+      const taken = takenIn(state.document)
+      const property = bound ? command.property : undefined
+      if (property && [...taken.paths].some((path) => pathsClash(property.name, path))) {
+        return nothing(`${property.displayName} is already on the form.`)
+      }
+      // For a property: its own name when that is free. Otherwise the rule of
+      // ADR 0008: the type and the lowest free number.
+      const name =
+        property && !taken.names.has(property.name)
+          ? property.name
+          : takeName(command.component, bound && !property, taken)
+      const settings = property ? (definition.forProperty?.(property) ?? {}) : {}
       const instance: ComponentInstance = {
         id: createId(idsIn(state.document), environment.random ?? cryptoRandom),
         type: command.component,
         name,
-        // An input is bound to a data path equal to its name. No settings are
-        // stored: a new instance uses its component's defaults.
-        ...(bound ? { bind: name } : {}),
+        // An input is bound to a data path equal to its name, or to its
+        // property. Without a property no settings are stored: a new
+        // instance uses its component's defaults.
+        ...(bound ? { bind: property?.name ?? name } : {}),
+        ...(Object.keys(settings).length > 0 ? { settings } : {}),
       }
       const at = command.at ?? afterSelection(outline, state.selection)
       return change(
         { type: "insert", instance, at },
         `Add ${name}`,
         instance.id,
-        (after) => `Added ${definition.displayName} ${name} at ${place(after, instance.id)}.`,
+        (after) =>
+          `Added ${definition.displayName} ${name}${property ? ` for ${property.displayName}` : ""} at ${place(after, instance.id)}.`,
       )
     }
 

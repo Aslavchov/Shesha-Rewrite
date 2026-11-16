@@ -4,6 +4,8 @@ import { CircleHelpIcon, EyeOffIcon, TriangleAlertIcon } from "lucide-react"
 
 import { useDesigner, useDesignerContext, useDrag } from "./context"
 import { SCROLL_AREA_ATTRIBUTE } from "./drag/controller"
+import { useBoundEntity } from "./binding"
+import { bindingProblemsOf } from "./model/binding"
 import { problemsOf } from "./model/problems"
 import type { OutlineNode } from "./model/schema"
 import { outlineDropAt, type OutlineRow, outlineRows } from "./outline-rows"
@@ -192,7 +194,8 @@ function InstanceRow({
   const isDragged = useDrag((state) => state?.source.kind === "existing" && state.source.id === id)
   const Icon = node.definition?.icon ?? CircleHelpIcon
   const typeName = node.definition?.displayName ?? `unknown component ${type}`
-  const problems = problemsOf(node).length
+  const bound = useBoundEntity()
+  const problems = problemsOf(node).length + bindingProblemsOf(node, bound, store.schema).length
   const problemText = problems === 1 ? "1 problem" : `${problems} problems`
   // A container with several regions says which one each child is in.
   const inRegion = node.parent?.regions.find((candidate) => candidate.name === node.position.region)

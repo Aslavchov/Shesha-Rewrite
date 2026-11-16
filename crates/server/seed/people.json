@@ -1,0 +1,25 @@
+{
+  "formatVersion": 1,
+  "name": "People",
+  "description": "Demo list: every person, with search, filters and paging. A row opens the Person form.",
+  "components": [
+    {
+      "id": "c_a4t7m2k9pe",
+      "type": "data-table",
+      "name": "people",
+      "settings": {
+        "entity": "person",
+        "columns": [
+          { "property": "firstName" },
+          { "property": "surname" },
+          { "property": "email" },
+          { "property": "dateOfBirth" },
+          { "property": "status" },
+          { "property": "organisation" }
+        ],
+        "pageSize": 10,
+        "allowDelete": true
+      }
+    }
+  ]
+}

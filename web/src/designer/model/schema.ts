@@ -1,5 +1,5 @@
 import type { ComponentDefinition, Registry } from "@/forms/runtime"
-import type { ComponentInstance, FormDocument } from "@/generated"
+import type { ComponentInstance, FormDocument, PropertyDefinition } from "@/generated"
 
 import { type Position, ROOT_REGION } from "./tree"
 
@@ -47,6 +47,11 @@ export type Schema = {
   readonly registry: Registry
   /** The outline of a document. Remembered per document, so asking again is free. */
   readonly outline: (document: FormDocument) => Outline
+  /**
+   * The component an entity property is edited with: the first registered
+   * one that says it is (Phase 5, ADR 0011). Null when none does.
+   */
+  readonly componentFor: (property: PropertyDefinition) => ComponentDefinition | null
 }
 
 export function createSchema(registry: Registry): Schema {
@@ -110,6 +115,12 @@ export function createSchema(registry: Registry): Schema {
 
   return {
     registry,
+    componentFor(property) {
+      for (const definition of registry.values()) {
+        if (definition.forProperty?.(property)) return definition
+      }
+      return null
+    },
     outline(document) {
       let outline = outlines.get(document)
       if (!outline) {

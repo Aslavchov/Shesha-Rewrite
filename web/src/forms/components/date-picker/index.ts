@@ -17,6 +17,16 @@ export const datePicker = defineInput({
   constraints: [dateRange],
   rules: [required, minDate, maxDate],
   slots,
+  forProperty: (property) =>
+    property.type === "date"
+      ? {
+          label: property.displayName,
+          ...(property.helpText ? { helpText: property.helpText } : {}),
+          ...(property.required ? { required: true } : {}),
+          ...(property.earliest === undefined ? {} : { minDate: property.earliest }),
+          ...(property.latest === undefined ? {} : { maxDate: property.latest }),
+        }
+      : null,
   Edit: DatePickerEdit,
   ReadOnly: DatePickerReadOnly,
 })

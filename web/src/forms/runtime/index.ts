@@ -20,9 +20,11 @@ export {
 } from "./definition"
 export type { DesignInstanceProps, DesignRegionProps, DesignSurface } from "./design"
 export { GAP_CLASS } from "./layout"
+export { wantsWidth } from "./layout-width"
 export { formSettings } from "./model"
 export {
   type Choice,
+  type Column,
   resolveSettings,
   type Setting,
   type SettingGroup,
@@ -31,7 +33,7 @@ export {
   type SettingsSchema,
   type Tab,
 } from "./settings"
-export { FormRenderer, type FormRendererProps } from "./renderer"
+export { FormRenderer, type FormRendererProps, type SubmittedForm } from "./renderer"
 export {
   COLOR_TOKENS,
   FONT_WEIGHTS,
@@ -44,4 +46,5 @@ export {
   type ThemeStyles,
 } from "./styles"
 export { ThemeStylesContext } from "./theme"
-export type { NestedValues } from "./values"
+export type { PathProblem } from "./store"
+export type { NestedValues, ValueType } from "./values"

@@ -561,7 +561,7 @@ test.describe("C4-16 Keyboard", () => {
     for (let step = 0; step < 5; step++) await page.keyboard.press("ArrowRight")
     await expect(page.getByTestId("theme-token-success")).toBeFocused()
     await page.keyboard.press("Enter")
-    await expect(live).toHaveText("Background of whole component: Success.")
+    await expect(live).toHaveText("Background of Button's whole component: Success.")
 
     // Undo takes back the default only.
     await page.keyboard.press("ControlOrMeta+z")

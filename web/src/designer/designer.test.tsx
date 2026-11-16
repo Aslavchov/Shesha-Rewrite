@@ -143,6 +143,7 @@ describe("the designer's layout", () => {
       [...registry.values()].filter((definition) => definition.category === category).length
     expect(groups).toEqual([
       ["Inputs", count("input")],
+      ["Data", count("data")],
       ["Layout", count("layout")],
       ["Content", count("content")],
       ["Actions", count("action")],

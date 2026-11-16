@@ -58,7 +58,7 @@ test.describe("C1-1 Forms list", () => {
     expect(response?.status()).toBe(200)
     await expect(page.getByTestId("form")).toBeVisible()
 
-    await page.getByTestId("form-back-link").click()
+    await page.getByTestId("form-back").click()
 
     await expect(page).toHaveURL("/forms")
     await expect(page.getByTestId("forms-list")).toBeVisible()

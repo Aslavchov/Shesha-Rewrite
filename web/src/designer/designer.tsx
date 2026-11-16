@@ -23,6 +23,7 @@ import { PANEL_POPUP_ATTRIBUTE } from "./properties/described-by"
 import { PropertiesPanel } from "./properties/properties-panel"
 import { Autosave, type SendSave } from "./save"
 import { matchShortcut } from "./shortcuts"
+import { DataPanel } from "./data-panel"
 import { DesignerStore, type Surface } from "./store"
 import { SaveStatusView, Toolbar } from "./toolbar"
 import { Toolbox } from "./toolbox"
@@ -68,7 +69,12 @@ export function Designer({
     const drag = new DragController({
       accept(source, position) {
         if (source.kind === "new") {
-          const added = store.dryRun({ type: "add", component: source.component, at: position })
+          const added = store.dryRun({
+            type: "add",
+            component: source.component,
+            at: position,
+            property: source.property,
+          })
           return added.changed ? position : null
         }
         const { editor } = store.getSnapshot()
@@ -86,7 +92,7 @@ export function Designer({
       drop(source, to, surface) {
         store.run(
           source.kind === "new"
-            ? { type: "add", component: source.component, at: to }
+            ? { type: "add", component: source.component, at: to, property: source.property }
             : { type: "move", id: source.id, to },
         )
         store.focusSelection(surface)
@@ -286,6 +292,7 @@ function Workspace({
           inert={isLocked}
           className="shrink-0 border-b bg-sidebar transition-opacity lg:w-designer-toolbox lg:overflow-y-auto lg:border-r lg:border-b-0 inert:opacity-50"
         >
+          <DataPanel />
           <Toolbox />
         </aside>
         <div inert={isConflict} className="flex min-h-96 min-w-0 flex-1 flex-col inert:opacity-50">

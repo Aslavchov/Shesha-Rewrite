@@ -37,7 +37,9 @@ export const FORMS_PAGE: AppPage = {
   icon: FileTextIcon,
 }
 
-export const formPath = (id: string) => `${FORMS_PAGE.path}/${encodeURIComponent(id)}`
+/** A form, and with `rowId` the row of its entity it is opened for (Phase 5). */
+export const formPath = (id: string, rowId?: string | null) =>
+  `${FORMS_PAGE.path}/${encodeURIComponent(id)}${rowId ? `/${encodeURIComponent(rowId)}` : ""}`
 
 /** Built in Phase 2. Lists the forms; each opens in the designer at `designerPath(id)`. */
 export const DESIGNER_PAGE: AppPage = {
@@ -57,15 +59,16 @@ export const THEMES_PAGE: AppPage = {
   icon: PaletteIcon,
 }
 
+/** Built in Phase 5: entities, their properties, and reference lists. */
+export const ENTITIES_PAGE: AppPage = {
+  id: "entities",
+  path: "/entities",
+  title: "Entities",
+  icon: BoxesIcon,
+}
+
 /* When each page arrives follows docs/roadmap.md; keep the two in step. */
 export const UPCOMING_PAGES: AppPage[] = [
-  {
-    id: "entities",
-    path: "/entities",
-    title: "Entities",
-    icon: BoxesIcon,
-    upcoming: { summary: "The data entities and properties that forms bind to.", arrives: 5 },
-  },
   {
     id: "settings",
     path: "/settings",
@@ -81,6 +84,7 @@ export const NAV_PAGES: AppPage[] = [
   FORMS_PAGE,
   DESIGNER_PAGE,
   THEMES_PAGE,
+  ENTITIES_PAGE,
   ...UPCOMING_PAGES,
 ]
 
