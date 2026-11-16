@@ -10,7 +10,7 @@ import { useCatalog, useDataClient, useFormChoices } from "@/data/client"
 import { PROPERTY_TYPES } from "@/data/properties"
 import type { EntityDefinition, EntityRecord, PropertyDefinition } from "@/generated"
 
-import { nameProblem, toName } from "./names"
+import { nameProblem, toName, withArticle } from "./names"
 import { useDefinitionCache, useFormsUsing } from "./hooks"
 import { ChoiceSelect, SaveError, UsedBy } from "./parts"
 import { PropertyDialog } from "./property-dialog"
@@ -64,6 +64,11 @@ export function EntityEditor({
     displayName.trim() !== stored?.displayName ||
     displayProperty !== (stored?.displayProperty ?? null) ||
     defaultForm !== (stored?.defaultForm ?? null)
+
+  // A new entity starts at its display name, where its name is made from.
+  React.useEffect(() => {
+    if (isNew) document.getElementById(`${id}-display`)?.focus()
+  }, [isNew, id])
 
   const save = () => {
     setWasSubmitted(true)
@@ -212,8 +217,32 @@ export function EntityEditor({
                 >
                   {isNew ? "Create entity" : "Save"}
                 </Button>
+                {!isNew && isDirty ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    data-testid="entity-discard"
+                    disabled={state.busy}
+                    onClick={() => {
+                      setDisplayName(stored?.displayName ?? "")
+                      setDisplayProperty(stored?.displayProperty ?? null)
+                      setDefaultForm(stored?.defaultForm ?? null)
+                      setWasSubmitted(false)
+                      setState({ busy: false, error: null, saved: false })
+                      document.getElementById(`${id}-display`)?.focus()
+                    }}
+                  >
+                    Discard
+                  </Button>
+                ) : null}
                 <output data-testid="entity-save-status" className="text-sm text-muted-foreground">
-                  {state.busy ? "Saving…" : state.saved && !isDirty ? "Saved" : ""}
+                  {state.busy
+                    ? "Saving…"
+                    : !isNew && isDirty
+                      ? "Unsaved changes"
+                      : state.saved
+                        ? "Saved"
+                        : ""}
                 </output>
                 {isNew ? null : (
                   <Button
@@ -241,8 +270,8 @@ export function EntityEditor({
           <CardHeader>
             <CardTitle>Properties</CardTitle>
             <CardDescription>
-              What a {record.definition.displayName.toLowerCase()} holds. Select a property to
-              change it.
+              What {withArticle(record.definition.displayName.toLowerCase())} holds. Select a
+              property to change it.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">

@@ -13,6 +13,11 @@ export type TableView = {
   readonly sort: { readonly property: string; readonly direction: "asc" | "desc" } | null
   readonly search: string
   readonly filters: Readonly<Record<string, FilterDraft>>
+  /**
+   * What the person left the table through: a row they opened, or New.
+   * Focus returns there when they come back.
+   */
+  readonly returnTo?: string | null
 }
 
 export const INITIAL_VIEW: TableView = { page: 1, sort: null, search: "", filters: {} }

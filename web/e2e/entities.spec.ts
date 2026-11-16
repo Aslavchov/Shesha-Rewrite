@@ -746,7 +746,7 @@ test("C5-18 bad queries get 400 with details, never 500", async ({ request }) =>
       "filter[0].op",
     ],
     ["a filter that is not a list", { filter: { property: "surname" } }, "filter"],
-    ["SQL-like search text", { search: "'; DROP TABLE forms; --" }, "search"],
+    ["control characters in search text", { search: "Smith\u0000" }, "search"],
     ["SQL as a property", { select: ["surname; DROP TABLE forms"] }, "select[0]"],
   ]
   for (const [what, body, path] of cases) {
@@ -762,4 +762,205 @@ test("C5-18 bad queries get 400 with details, never 500", async ({ request }) =>
     ).toContain(path)
   }
   expect((await query(request, "person", {})).total).toBe(50)
+
+  // Search text is plain text: SQL-like text is something to look for.
+  for (const search of ["'; DROP TABLE forms; --", "Smith; Jones", "/* x */"]) {
+    expect((await query(request, "person", { search })).total, search).toBe(0)
+  }
+  const created = await request.post("/api/data/person", {
+    data: { values: { firstName: "Pat", surname: "Smith; Jones" } },
+  })
+  expect(created.status()).toBe(201)
+  expect((await query(request, "person", { search: "Smith; Jones" })).total).toBe(1)
+})
+
+test.describe("Fixes from the Chrome checks", () => {
+  test("a failed table query shows the server's reason, and no Loading… beside it", async ({
+    page,
+    request,
+    expectRefusal,
+  }) => {
+    const created = await request.post("/api/forms", {
+      data: {
+        document: {
+          formatVersion: 1,
+          name: "Notes",
+          components: [
+            {
+              id: "c_notes",
+              type: "data-table",
+              name: "notes",
+              settings: {
+                entity: "person",
+                columns: [{ property: "surname" }, { property: "notes" }],
+              },
+            },
+          ],
+        },
+      },
+    })
+    const form = (await created.json()) as { id: string }
+    await page.goto(`/forms/${form.id}`)
+    await expect(pageStatus(page)).toHaveText("1–10 of 50")
+
+    // Notes goes while the table is open: its next query asks for it.
+    const current = (await (await request.get("/api/entities/person")).json()) as {
+      revision: number
+      definition: { properties: { name: string }[] }
+    }
+    const definition = {
+      ...current.definition,
+      properties: current.definition.properties.filter((property) => property.name !== "notes"),
+    }
+    const changed = await request.put("/api/entities/person", {
+      data: { revision: current.revision, definition },
+    })
+    expect(changed.status()).toBe(200)
+
+    expectRefusal(400)
+    await page.getByTestId("table-sort-surname").click()
+    const error = page.getByTestId("table-error")
+    await expect(error).toContainText("The rows could not be loaded.")
+    await expect(error).toContainText('Person has no property named "notes".')
+    await expect(error).not.toContainText("The query has 1 problem")
+    await expect(pageStatus(page)).not.toContainText("Loading")
+  })
+
+  test("at 1280 px the row actions stay in view however wide the columns grow", async ({
+    page,
+    request,
+  }) => {
+    const list = (await (await request.get("/api/reference-lists/personStatus")).json()) as {
+      revision: number
+      definition: { items: { value: string; retired?: boolean }[] }
+    }
+    const items = list.definition.items.map((item) =>
+      item.value === "pending" ? { ...item, retired: true } : item,
+    )
+    const saved = await request.put("/api/reference-lists/personStatus", {
+      data: { revision: list.revision, definition: { ...list.definition, items } },
+    })
+    expect(saved.status()).toBe(200)
+
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await openPeople(page)
+    await expect(page.getByTestId(`table-row-${PERSON(7)}`)).toContainText(/Pending\s*\(retired\)/)
+    const scroller = await page.getByTestId("table-scroll").boundingBox()
+    if (!scroller) throw new Error("No table.")
+    for (const id of await rowIds(page)) {
+      const button = await page.getByTestId(`table-delete-${id}`).boundingBox()
+      expect(button, id).not.toBeNull()
+      expect(button!.x + button!.width, id).toBeLessThanOrEqual(scroller.x + scroller.width)
+      expect(button!.x, id).toBeGreaterThanOrEqual(scroller.x)
+    }
+    // Scrolled all the way to the start, they are still there.
+    await page.getByTestId("table-scroll").evaluate((element) => (element.scrollLeft = 0))
+    await expect(page.getByTestId(`table-delete-${PERSON(1)}`)).toBeInViewport()
+  })
+
+  test("moving between pages focuses the heading, and coming back focuses what was opened", async ({
+    page,
+  }) => {
+    await openPeople(page)
+    const heading = page.getByTestId("page-title")
+
+    await page.getByTestId(`table-open-${PERSON(3)}`).click()
+    await expect(heading).toHaveText(/\S/)
+    await expect(heading).toBeFocused()
+    await page.getByTestId("form-back").click()
+    await expect(page.getByTestId(`table-open-${PERSON(3)}`)).toBeFocused()
+
+    // From the keyboard, the same.
+    await page.getByTestId("table-new").focus()
+    await page.keyboard.press("Enter")
+    await expect(heading).toHaveText("New person")
+    await expect(heading).toBeFocused()
+    await page.getByTestId("form-back").focus()
+    await page.keyboard.press("Enter")
+    await expect(page.getByTestId("table-new")).toBeFocused()
+
+    // A page reached from the sidebar starts at its heading too.
+    await page.getByTestId("nav-entities").click()
+    await expect(heading).toHaveText("Entities")
+    await expect(heading).toBeFocused()
+  })
+
+  test("the properties say “an organisation” and “a person”", async ({ page }) => {
+    await openEntity(page, "organisation")
+    await expect(page.getByText("What an organisation holds.")).toBeVisible()
+    await page.getByTestId("entity-person").click()
+    await expect(page.getByText("What a person holds.")).toBeVisible()
+  })
+
+  test("New entity and New reference list start at the display name", async ({ page }) => {
+    await page.goto("/entities")
+    await page.getByTestId("entities-new").click()
+    await expect(page.getByTestId("entity-display-name")).toBeFocused()
+    await page.getByTestId("reflists-tab").click()
+    await page.getByTestId("reflist-new").click()
+    await expect(page.getByTestId("reflist-display-name")).toBeFocused()
+  })
+
+  test("a reference list can be saved only when changed, and unsaved edits can be discarded", async ({
+    page,
+  }) => {
+    await page.goto("/entities")
+    await page.getByTestId("reflists-tab").click()
+    await page.getByTestId("reflist-personStatus").click()
+    const save = page.getByTestId("reflist-save")
+    await expect(save).toHaveAttribute("aria-disabled", "true")
+    await expect(page.getByTestId("reflist-discard")).toHaveCount(0)
+
+    await page.getByTestId("reflist-item-active-label").fill("Current")
+    await page.getByTestId("reflist-item-inactive-delete").click()
+    await expect(save).not.toHaveAttribute("aria-disabled")
+    await expect(page.getByTestId("reflist-save-status")).toHaveText("Unsaved changes")
+    await expect(page.getByTestId("reflist-deleted")).toContainText("Saving deletes Inactive")
+    await expect(page.getByTestId("reflist-item-inactive")).toHaveCount(0)
+
+    await page.getByTestId("reflist-discard").click()
+    await expect(page.getByTestId("reflist-item-active-label")).toHaveValue("Active")
+    await expect(page.getByTestId("reflist-item-inactive")).toBeVisible()
+    await expect(save).toHaveAttribute("aria-disabled", "true")
+    await expect(page.getByTestId("reflist-save-status")).toHaveText("")
+
+    // The entity editor has the same pair.
+    await page.getByTestId("entities-tab").click()
+    await page.getByTestId("entity-person").click()
+    await expect(page.getByTestId("entity-save")).toHaveAttribute("aria-disabled", "true")
+    await page.getByTestId("entity-display-name").fill("People")
+    await expect(page.getByTestId("entity-save-status")).toHaveText("Unsaved changes")
+    await page.getByTestId("entity-discard").click()
+    await expect(page.getByTestId("entity-display-name")).toHaveValue("Person")
+  })
+
+  test("the table's date filters are the app's date input, typed or picked", async ({
+    page,
+    request,
+  }) => {
+    await openPeople(page)
+    await page.getByTestId("table-filters").click()
+    await expect(page.getByTestId("table-filter-panel").locator('input[type="date"]')).toHaveCount(
+      0,
+    )
+
+    const from = page.getByTestId("table-filter-dateOfBirth-from")
+    await from.fill("1 January 1990")
+    await from.press("Tab")
+    await expect(from).toHaveValue("1 January 1990")
+    const expected = await query(request, "person", {
+      filter: [{ property: "dateOfBirth", op: "gte", value: "1990-01-01" }],
+    })
+    await expect(pageStatus(page)).toHaveText(
+      `1–${Math.min(10, expected.total)} of ${expected.total}`,
+    )
+
+    // The calendar is the same one the Date picker opens.
+    await page.getByTestId("table-filter-dateOfBirth-to-trigger").click()
+    const calendar = page.getByTestId("table-filter-dateOfBirth-to-popup")
+    await expect(calendar).toBeVisible()
+    await expect(calendar.locator('[data-slot="calendar"]')).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(calendar).toHaveCount(0)
+  })
 })

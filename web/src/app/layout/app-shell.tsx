@@ -6,6 +6,7 @@ import { type RowNavigation, RowNavigationContext } from "@/data/navigation"
 import { APP_NAME } from "@/generated"
 
 import { formPath } from "../pages"
+import { navigated, settled } from "@/lib/heading-focus"
 import { AppHeader } from "./app-header"
 import { AppSidebar } from "./app-sidebar"
 import { MAIN_CONTENT_ID, SkipLink } from "./skip-link"
@@ -38,6 +39,19 @@ function useRowNavigationValue(): RowNavigation {
 /** The frame around every route: skip link, sidebar, header and <main>. */
 export function AppShell() {
   const rows = useRowNavigationValue()
+  const { key } = useLocation()
+  // Every move to another page, but not the first page the app opens on:
+  // there, focus starts at the top of the document as it always does.
+  // A layout effect: it runs before the new page's own effects, which look
+  // for the mark.
+  const first = React.useRef(key)
+  React.useLayoutEffect(() => {
+    if (key !== first.current) navigated(key)
+  }, [key])
+  React.useEffect(() => {
+    window.addEventListener("pointerdown", settled, true)
+    return () => window.removeEventListener("pointerdown", settled, true)
+  }, [])
   return (
     <>
       <SkipLink />

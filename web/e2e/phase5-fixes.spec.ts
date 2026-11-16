@@ -133,7 +133,7 @@ test("C5-20 focus stays on Publish and on Discard once they have nothing left to
   await expect(page.getByTestId("theme-undo")).not.toHaveAttribute("aria-disabled")
 })
 
-test("C5-20 the component grid is one Tab stop moved with the arrow keys, and no name is cut off at 16 px text", async ({
+test("C5-20 the component grid is one Tab stop moved with the arrow keys, and no name is cut off or broken mid-word at 16 px text", async ({
   page,
   request,
 }) => {
@@ -152,7 +152,8 @@ test("C5-20 the component grid is one Tab stop moved with the arrow keys, and no
       const top = all[0].getBoundingClientRect().top
       return all.filter((item) => item.getBoundingClientRect().top === top).length
     })
-    expect(columns).toBe(width === 1280 ? 3 : 2)
+    // Fewer columns as the text grows, never so few that a name has no room.
+    expect(columns).toBeGreaterThanOrEqual(1)
 
     await items.first().focus()
     await page.keyboard.press("ArrowRight")
@@ -202,6 +203,28 @@ test("C5-20 the component grid is one Tab stop moved with the arrow keys, and no
           .map((name) => name.textContent),
       )
     expect(cut).toEqual([])
+
+    // A name breaks only between words: every word lies on one line.
+    const broken = await page
+      .locator('[data-testid^="theme-component-"][data-testid$="-name"]')
+      .evaluateAll((names) => {
+        const split: string[] = []
+        for (const name of names) {
+          const text = name.firstChild
+          if (text === null) continue
+          let start = 0
+          for (const word of (text.textContent ?? "").split(" ")) {
+            const range = document.createRange()
+            range.setStart(text, start)
+            range.setEnd(text, start + word.length)
+            start += word.length + 1
+            const lines = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)))
+            if (lines.size > 1) split.push(word)
+          }
+        }
+        return split
+      })
+    expect(broken).toEqual([])
     expect(await overflowsSideways(page)).toBe(false)
     await page.goto("about:blank")
   }

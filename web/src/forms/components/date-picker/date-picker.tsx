@@ -14,7 +14,7 @@ import { ReadOnlyField } from "../../parts/read-only"
 import { useTextDraft } from "../../parts/use-text-draft"
 import type { InputEditProps, InputReadOnlyProps } from "../../runtime"
 import { formatDate, parseDateText } from "../../runtime/dates"
-import { DateCalendar } from "./date-calendar"
+import { DateCalendar } from "../../parts/date-calendar"
 import type { settings, Slot } from "./settings"
 
 export function DatePickerEdit({

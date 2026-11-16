@@ -55,7 +55,13 @@ export function ComponentsSection() {
       title="Component defaults"
       description="How each kind of component looks unless a form's author overrides it on one instance."
     >
-      <ul ref={gridRef} aria-label="Components" className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+      <ul
+        ref={gridRef}
+        aria-label="Components"
+        // As many columns as fit tiles of at least the tile size: fewer when
+        // the text is larger, so names break only between words.
+        className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--sys-size-tile)),1fr))] gap-1"
+      >
         {definitions.map((definition) => {
           const count = Object.keys(components?.[definition.type] ?? {}).length
           const isSelected = selected === definition.type
@@ -82,7 +88,7 @@ export function ComponentsSection() {
                 />
                 <span
                   data-testid={`theme-component-${definition.type}-name`}
-                  className="min-w-0 flex-1 wrap-break-word"
+                  className="min-w-0 flex-1 wrap-normal break-normal"
                 >
                   {definition.displayName}
                 </span>

@@ -100,6 +100,35 @@ export function ReferenceListEditor({
 
   const isNew = record === null
   const values = valuesOf(items)
+  // What is on screen against what is stored: nothing to save, or something.
+  const isDirty =
+    isNew ||
+    displayName.trim() !== stored?.displayName ||
+    items.length !== stored.items.length ||
+    items.some((item, index) => {
+      const saved = stored.items[index]
+      return (
+        item.value !== saved.value ||
+        item.label.trim() !== saved.label ||
+        item.color !== saved.color ||
+        item.retired !== (saved.retired ?? false)
+      )
+    })
+  /** Stored items that Save would delete. */
+  const deleted = (stored?.items ?? []).filter(
+    (item) => !items.some((candidate) => candidate.value === item.value),
+  )
+  const discard = () => {
+    setDisplayName(stored?.displayName ?? "")
+    setItems(itemsOf(stored))
+    setWasSubmitted(false)
+    setState({ busy: false, error: null, saved: false })
+  }
+
+  // A new list starts at its display name, where its name is made from.
+  React.useEffect(() => {
+    if (isNew) document.getElementById(`${id}-display`)?.focus()
+  }, [isNew, id])
   const displayError = displayName.trim() === "" ? "Give the list a display name." : null
   const nameError = isNew ? nameProblem(name, [...catalog.lists.keys()]) : null
   const blank = items.findIndex((item) => item.label.trim() === "")
@@ -337,13 +366,47 @@ export function ReferenceListEditor({
             </Button>
           </div>
 
+          {deleted.length > 0 ? (
+            <p data-testid="reflist-deleted" className="text-sm text-muted-foreground">
+              Saving deletes {deleted.map((item) => item.label).join(", ")}. Discard to keep{" "}
+              {deleted.length === 1 ? "it" : "them"}.
+            </p>
+          ) : null}
           <SaveError error={state.error} testId="reflist-error" />
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" data-testid="reflist-save" disabled={state.busy}>
+            <Button
+              type="submit"
+              data-testid="reflist-save"
+              // Not `disabled`: it keeps its place in the Tab order, and says why.
+              aria-disabled={!isDirty || state.busy || undefined}
+              onClick={(event) => {
+                if (!isDirty || state.busy) event.preventDefault()
+              }}
+            >
               {isNew ? "Create list" : "Save"}
             </Button>
+            {!isNew && isDirty ? (
+              <Button
+                type="button"
+                variant="outline"
+                data-testid="reflist-discard"
+                disabled={state.busy}
+                onClick={() => {
+                  discard()
+                  document.getElementById(`${id}-display`)?.focus()
+                }}
+              >
+                Discard
+              </Button>
+            ) : null}
             <output data-testid="reflist-save-status" className="text-sm text-muted-foreground">
-              {state.busy ? "Saving…" : state.saved ? "Saved" : ""}
+              {state.busy
+                ? "Saving…"
+                : !isNew && isDirty
+                  ? "Unsaved changes"
+                  : state.saved
+                    ? "Saved"
+                    : ""}
             </output>
             {isNew ? null : (
               <Button

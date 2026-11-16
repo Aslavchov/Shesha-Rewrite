@@ -14,6 +14,7 @@ import type { Catalog } from "@/data/client"
 import { RowCombobox } from "@/data/row-combobox"
 import type { PropertyDefinition } from "@/generated"
 
+import { DateInput } from "../../parts/date-input"
 import type { FilterDraft } from "./view"
 
 /** The value of "no filter" in a choice. */
@@ -90,28 +91,36 @@ function FilterField({
   const labelClass = "text-xs font-medium text-muted-foreground"
 
   if (property.type === "number" || property.type === "date") {
-    const type = property.type === "date" ? "date" : "number"
+    // A range: the same control at each end as the rest of the app uses.
+    const end = (which: "from" | "to") =>
+      property.type === "date" ? (
+        <DateInput
+          testId={`${testId}-${which}`}
+          aria-label={`${label} ${which}`}
+          placeholder={which === "from" ? "From" : "To"}
+          value={draft[which] || null}
+          onChange={(value) => onChange({ ...draft, [which]: value ?? "" })}
+        />
+      ) : (
+        <Input
+          type="number"
+          step="any"
+          data-testid={`${testId}-${which}`}
+          aria-label={`${label} ${which}`}
+          placeholder={which === "from" ? "From" : "To"}
+          value={draft[which] ?? ""}
+          onChange={(event) => onChange({ ...draft, [which]: event.target.value })}
+        />
+      )
     return (
       <fieldset data-testid={testId} className="flex min-w-0 flex-col gap-1">
         <legend className={`${labelClass} mb-1`}>{label}</legend>
         <div className="flex items-center gap-1.5">
-          <Input
-            type={type}
-            data-testid={`${testId}-from`}
-            aria-label={`${label} from`}
-            value={draft.from ?? ""}
-            onChange={(event) => onChange({ ...draft, from: event.target.value })}
-          />
+          {end("from")}
           <span aria-hidden="true" className="text-muted-foreground">
             –
           </span>
-          <Input
-            type={type}
-            data-testid={`${testId}-to`}
-            aria-label={`${label} to`}
-            value={draft.to ?? ""}
-            onChange={(event) => onChange({ ...draft, to: event.target.value })}
-          />
+          {end("to")}
         </div>
       </fieldset>
     )

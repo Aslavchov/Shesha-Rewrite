@@ -2684,12 +2684,12 @@ async fn sql_like_text_where_a_property_is_named_is_a_400_and_touches_nothing() 
     );
 }
 
-// C5-18. Search text is only ever a bound parameter. Text that reads as SQL
-// (statement or comment markers, control characters) is refused with a 400 at
-// `search`; other odd text, quotes included, is a search that finds nothing.
-// An apostrophe is something people really search for (O'Brien).
+// C5-18. Search text is plain text, only ever a bound parameter: SQL-like
+// text is a search that finds nothing, and harms nothing. Only control
+// characters are refused, with a 400 at `search`. An apostrophe is something
+// people really search for (O'Brien), and so is "Smith; Jones".
 #[tokio::test]
-async fn sql_like_search_text_is_refused_and_quotes_are_only_text() {
+async fn sql_like_search_text_is_plain_text_and_control_characters_are_refused() {
     let (state, _dir) = app(true).await;
     let tables_before = tables(&state).await;
     let rows_before = all_rows(&state, PERSON).await;
@@ -2708,9 +2708,7 @@ async fn sql_like_search_text_is_refused_and_quotes_are_only_text() {
         "\0",
     ];
     for attack in attacks {
-        let reads_as_sql =
-            attack.contains(';') || attack.contains("--") || attack.chars().any(char::is_control);
-        if reads_as_sql {
+        if attack.chars().any(char::is_control) {
             let error = refused(
                 &state,
                 Method::POST,
@@ -2778,7 +2776,7 @@ async fn sql_like_text_is_stored_and_found_as_the_text_it_is() {
     assert_eq!(obrien["values"]["surname"], "O'Brien");
     assert_eq!(obrien["display"], "O'Brien");
     assert_eq!(get(&state, &format!("/api/data/person/{id}")).await, obrien);
-    for search in ["O'Brien", "o'brien", "o'b", "'", "\"hello\""] {
+    for search in ["O'Brien", "o'brien", "o'b", "'", "\"hello\"", "; --"] {
         let found = matching(&state, PERSON, json!({ "search": search })).await;
         assert_eq!(found, std::slice::from_ref(&id), "{search:?}");
     }
@@ -2800,7 +2798,7 @@ async fn sql_like_text_is_stored_and_found_as_the_text_it_is() {
     )
     .await;
     assert_eq!(bobby["values"]["surname"], attack);
-    let found = matching(&state, PERSON, json!({ "search": "Robert')" })).await;
+    let found = matching(&state, PERSON, json!({ "search": attack })).await;
     assert_eq!(found, [bobby["id"].as_str().unwrap()]);
     let response = patch(
         &state,
@@ -3052,4 +3050,26 @@ async fn a_sorted_filtered_and_searched_page_of_10_000_rows_takes_under_200_ms()
         best < Duration::from_millis(200),
         "the query took {best:?}; the limit is 200 ms"
     );
+}
+
+// C5-18. A search with ";" in it returns its matches, like any other text.
+#[tokio::test]
+async fn a_search_with_a_semicolon_returns_its_matches() {
+    let (state, _dir) = app(true).await;
+    let row = create_row(
+        &state,
+        PERSON,
+        json!({ "firstName": "Pat", "surname": "Smith; Jones" }),
+    )
+    .await;
+    let id = row["id"].as_str().unwrap();
+    for search in ["Smith; Jones", "smith;", "; jones", "/* x */"] {
+        let found = matching(&state, PERSON, json!({ "search": search })).await;
+        let expected: Vec<&str> = if search == "/* x */" {
+            vec![]
+        } else {
+            vec![id]
+        };
+        assert_eq!(found, expected, "{search:?}");
+    }
 }

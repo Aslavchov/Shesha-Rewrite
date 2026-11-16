@@ -70,21 +70,6 @@ fn like(needle: &str, anywhere: bool) -> String {
 
 const LIKE_ESCAPE: &str = " ESCAPE '\\'";
 
-/// What makes search text read as SQL, in words, or `None`.
-fn sql_like(text: &str) -> Option<&'static str> {
-    if text.contains(';') {
-        Some("\";\"")
-    } else if text.contains("--") {
-        Some("\"--\"")
-    } else if text.contains("/*") || text.contains("*/") {
-        Some("\"/*\" or \"*/\"")
-    } else if text.chars().any(char::is_control) {
-        Some("control characters")
-    } else {
-        None
-    }
-}
-
 /// A checked query, ready to run.
 struct Plan<'a> {
     reader: Reader<'a>,
@@ -303,17 +288,14 @@ impl<'a> Planner<'a> {
             );
             return None;
         }
-        // Search text is only ever a bound parameter, so nothing in it can
-        // reach the SQL. Text that reads as SQL is still refused (spec
-        // section 4): statement and comment markers and control characters
-        // are never part of a name or a label, and only appear in attempts to
-        // break a query. An apostrophe is allowed: people are called O'Brien.
-        if let Some(marker) = sql_like(needle) {
+        // Search text is plain text: it is only ever a bound parameter, so
+        // ";" or "--" in it is something to look for, nothing more. Control
+        // characters are refused: they are never typed, and SQLite's LIKE
+        // stops reading a pattern at a NUL, which would match every row.
+        if needle.chars().any(char::is_control) {
             self.problem(
                 "search",
-                format!(
-                    "Search for words, names or labels. The search text cannot contain {marker}."
-                ),
+                "Search for words, names or labels. The search text cannot contain control characters.",
             );
             return None;
         }

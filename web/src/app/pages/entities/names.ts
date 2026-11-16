@@ -42,3 +42,12 @@ export function nameProblem(name: string, taken: readonly string[]): string | nu
     return "That name is already used."
   return null
 }
+
+/**
+ * A noun with "a" or "an" before it, by its first letter: "an organisation",
+ * "a person". English has exceptions ("an hour", "a unit"); a display name
+ * that is one reads a little oddly, and nothing breaks.
+ */
+export function withArticle(noun: string): string {
+  return `${/^[aeiou]/i.test(noun.trim()) ? "an" : "a"} ${noun.trim()}`
+}

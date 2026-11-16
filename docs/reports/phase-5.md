@@ -1,6 +1,6 @@
 # Phase 5 report
 
-> Last update: 16 Nov 2026. The phase is complete. Every requirement in sections 3 to 8 is built, ADR 0011 is written, and every check passed in the session before the one push. What CI is expected to say is at the end. Per the working rules, CI is not watched and this report is not updated with its result.
+> Last update: 16 Nov 2026. The phase is complete. Every requirement in sections 3 to 8 is built, ADR 0011 is written, and every check passed in the session before each push. A second push fixes nine findings from the Chrome checks (see "Fixes from the Chrome checks"). What CI is expected to say is at the end. Per the working rules, CI is not watched and this report is not updated with its result.
 
 ## Status
 
@@ -60,12 +60,12 @@
 
 | Suite | Count | Phase 4 |
 | --- | --- | --- |
-| Rust (`cargo test --workspace`) | 243 | 147 server and contracts |
-| Frontend unit (Vitest) | 1031 in 51 files | 965 in 45 |
+| Rust (`cargo test --workspace`) | 244 | 147 server and contracts |
+| Frontend unit (Vitest) | 1043 in 54 files | 965 in 45 |
 | Style guard (`node --test`) | 9 | 9 |
-| End-to-end (Playwright, release binary) | 181 | 156 |
+| End-to-end (Playwright, release binary) | 188 | 156 |
 
-New server tests: `crates/server/tests/entities.rs` (50) and `data.rs` (43), with shared helpers in `tests/support/`. New end-to-end tests: `web/e2e/entities.spec.ts` (18) and `web/e2e/phase5-fixes.spec.ts` (7). Each Phase 5 end-to-end test starts a server of its own with `--demo`, because each one changes data; the worker's shared server is left as the earlier phases' tests expect it.
+New server tests: `crates/server/tests/entities.rs` (50) and `data.rs` (44), with shared helpers in `tests/support/`. New end-to-end tests: `web/e2e/entities.spec.ts` (25, seven of them for the Chrome-check fixes) and `web/e2e/phase5-fixes.spec.ts` (7). Each Phase 5 end-to-end test starts a server of its own with `--demo`, because each one changes data; the worker's shared server is left as the earlier phases' tests expect it.
 
 **Acceptance checks**
 
@@ -99,11 +99,27 @@ Decisions the spec left to me:
 - **Rows open through real links.** The first column of each row is a link to `/forms/<form>/<id>`, so it can be reached with Tab, opened with Enter, or opened in a new tab. A press anywhere on the row opens it too.
 - **The way back** is the page the row was opened from, carried in the navigation state; Forms when there is none.
 - **A form holding a data table takes the page's width** (`wantsWidth`, by the component's category, so no page names a type). Forms of fields keep their column.
-- **SQL-like search text is a 400**, per spec section 4: `;`, `--`, `/*`, `*/` and control characters. Apostrophes are allowed (O'Brien). Search text is a bound parameter either way.
+- **Search text is plain text.** Only control characters are refused (400 at `search`); `;`, `--`, `/*` and `*/` are text to look for. This corrects the spec's section 4, at the product owner's request after the Chrome checks.
 - **Search ignores case**, and covers display values of referenced rows only when their entity has a display property.
 - **Retired items are marked "(retired)"** wherever they show, and are offered only when they are the current value.
 - **The data panel sits above the toolbox** in the designer's left column. It is one Tab stop with the arrow keys, like the toolbox.
 - **Small fixes (section 8).** Publish and Discard use `aria-disabled` and keep focus on the button pressed; the result is announced. The component grid is a roving Tab stop: Left and Right move along reading order, Up and Down by a row. The status bar gives the save error a row of its own. The action bar is sticky, and `--page-sticky-height` feeds `scroll-padding-top`, so focused fields are not hidden under it. Announcements name the component ("Background of Card's whole component: Success."). The slot tag is placed by measuring among six places outside the part, clear of its other parts and the name badge, and the root outline leaves a gap around the badge.
+
+## Fixes from the Chrome checks
+
+Nine findings from the pass of section 12 in Chrome, fixed in the second push:
+
+| # | Finding | Fix | Covered by |
+| --- | --- | --- | --- |
+| 1 | `;`, `--`, `/*`, `*/` in a search were refused | Search text is plain text; only control characters are a 400. A search for "Smith; Jones" returns its matches | `data.rs`: `sql_like_search_text_is_plain_text_and_control_characters_are_refused`, `a_search_with_a_semicolon_returns_its_matches`; e2e C5-18 |
+| 2 | A failed table query showed "Loading…" and only "The query has 1 problem" | The error lists each detail's message; the status is empty beside an error, or says the rows on screen may be out of date | e2e "a failed table query shows the server's reason…"; unit test in `data-table.test.tsx` |
+| 3 | At 1280 px Delete scrolled out of view when a column grew | The actions column is pinned to the right edge (sticky, opaque, with a border); the header row and row hover are opaque to match | e2e "at 1280 px the row actions stay in view…"; unit test |
+| 4 | After opening a row, New or Back, focus was left on the body and nothing was announced | Moving to a page focuses its heading (`tabIndex=-1`); coming back to a list focuses the row's link, or New. A pointer press, or focus the person moved, is never overridden. "Created and saved" is announced after the new address | e2e "moving between pages focuses the heading…"; `lib/heading-focus.test.ts` |
+| 5 | Component names broke mid-word at 16 px text | The grid auto-fills tiles of at least `--sys-size-tile` (10em, so it grows with the text): fewer columns when needed, names break only between words | e2e C5-20 grid test, which now checks every word is on one line |
+| 6 | "What a organisation holds" | "What an organisation holds" (`withArticle`) | e2e; `names.test.ts` |
+| 7 | New entity did not focus a field | New entity and New reference list focus the display name | e2e |
+| 8 | Reference list Save was enabled with nothing changed; no Discard; a deleted item vanished until a reload | Save is available only when something changed; Discard puts back what is stored; items Save would delete are named. The entity editor has the same Discard and status | e2e |
+| 9 | Table date filters used the browser's date input | `forms/parts/date-input.tsx`, the Date picker's text and calendar outside a form, used by the filters and by the property dialog's dates. The calendar moved to `forms/parts/date-calendar.tsx`, shared with the Date picker | e2e "the table's date filters are the app's date input…"; `date-input.test.tsx` |
 
 ## Deviations from the spec, with reasons
 
@@ -111,7 +127,7 @@ Decisions the spec left to me:
 2. **ADR 0008's `add` command takes an optional `property`.** Without it, nothing changes. With it, the instance is named after the property when that name is free, otherwise by ADR 0008's rule, and starts with the property's settings.
 3. **Status tag binds like an input** (it has a data path and value type Option), because that is how a component gets a value. It never changes the value, takes no focus, and has no rules.
 4. **The form's back link is `form-back`** (the spec's id) on every form page. It was `form-back-link`. The earlier tests that used it were updated.
-5. **Extra test ids**, all under the same convention: `entities-tab`, `entities-empty`, `entities-loading`, `entities-error`, `entity-list`, `entity-save`, `entity-save-status`, `entity-error`, `entity-name-error`, `entity-properties`, `property-<name>-type`, `property-system-<name>`, `property-dialog`, `property-save`, `property-error`, `property-name-error`, `property-help-text`, `property-max-length`, `property-multiline`, `property-whole`, `property-min`, `property-max`, `property-earliest`, `property-latest`, `property-reference-list`, `property-entity`, `property-fill`, `reflist-list`, `reflist-name`, `reflist-display-name`, `reflist-save`, `reflist-save-status`, `reflist-error`, `reflist-delete`, `reflist-items`, `reflist-item-<value>-label`, `-colour`, `-up`, `-down`, `-delete`, `table-scroll`, `table-open-<row id>`, `table-filter-panel`, `table-filter-<property>-from`, `-to`, `table-filters-count`, `table-filters-clear`, `table-empty`, `table-clear`, `table-error`, `table-error-retry`, `table-live`, `confirm-error`, `confirm-usage`, `form-entity-missing`, `form-row-not-found`, `designer-data-missing`. From the section 8 fixes: `theme-action-bar`, `theme-status-note`, `theme-component-<type>-name`, `theme-slot-tag`.
+5. **Extra test ids**, all under the same convention: `reflist-discard`, `reflist-deleted`, `entity-discard`, `table-filter-<property>-from-trigger` and `-to-trigger` (and `-popup`),  `entities-tab`, `entities-empty`, `entities-loading`, `entities-error`, `entity-list`, `entity-save`, `entity-save-status`, `entity-error`, `entity-name-error`, `entity-properties`, `property-<name>-type`, `property-system-<name>`, `property-dialog`, `property-save`, `property-error`, `property-name-error`, `property-help-text`, `property-max-length`, `property-multiline`, `property-whole`, `property-min`, `property-max`, `property-earliest`, `property-latest`, `property-reference-list`, `property-entity`, `property-fill`, `reflist-list`, `reflist-name`, `reflist-display-name`, `reflist-save`, `reflist-save-status`, `reflist-error`, `reflist-delete`, `reflist-items`, `reflist-item-<value>-label`, `-colour`, `-up`, `-down`, `-delete`, `table-scroll`, `table-open-<row id>`, `table-filter-panel`, `table-filter-<property>-from`, `-to`, `table-filters-count`, `table-filters-clear`, `table-empty`, `table-clear`, `table-error`, `table-error-retry`, `table-live`, `confirm-error`, `confirm-usage`, `form-entity-missing`, `form-row-not-found`, `designer-data-missing`. From the section 8 fixes: `theme-action-bar`, `theme-status-note`, `theme-component-<type>-name`, `theme-slot-tag`.
 6. **A debug-build setting**: `libsqlite3-sys` is compiled with `opt-level = 3` in the dev profile (root `Cargo.toml`), so the C5-19 test measures the SQLite a release build has.
 7. **Node 22 in the session**, as in Phases 3 and 4. `.node-version` asks for 24; CI uses 24.
 8. **Changes to earlier phases' tests**, beyond adding to them:
@@ -148,6 +164,7 @@ Changes to earlier phases' code, beyond adding to it:
 - A demo table of Organisations (C5-10 builds one in its test).
 - A sticky action bar takes about 190 px when stuck at 390 px wide in the theme editor; a compact layout for phones.
 - A full-width label's slot tag in the designer can overlap the field above it by 2 to 3 px; it never covers its own component.
+- The designer's properties panel still edits a date setting (minimum and maximum date) with the browser's date input; it could use `DateInput` too, inside its runs of edits.
 - From the spec's section 9: permissions, audit history, child lists, many-to-many, files, computed properties, import and export, bulk editing, entities in code, external databases, scripting.
 - Still open from earlier phases: touch dragging, deleting forms from the UI, a designer layout for narrow windows, retrying a failed save by itself, locale-aware formats, an automated guard for raw values in components, and splitting the JavaScript bundle (now 1,017 kB, 318 kB gzipped).
 
@@ -178,15 +195,15 @@ From the repository root:
 | --- | --- |
 | Typecheck (`tsc -b`) | Pass |
 | Lint (oxlint with warnings as errors, Prettier) | Pass |
-| Frontend unit tests, 1031 in 51 files | Pass |
+| Frontend unit tests, 1043 in 54 files | Pass |
 | Frontend build | Pass |
 | `cargo fmt --check`, clippy with `-D warnings` | Pass |
-| Rust tests, 243 | Pass |
+| Rust tests, 244 | Pass |
 | Generated types up to date (`generate-types.mjs --check`, after the commit) | Pass |
-| Style guard and its 9 tests, 343 files | Pass |
+| Style guard and its 9 tests, 348 files | Pass |
 | Linux release build (static musl, 7.2 MB) | Pass |
 | Smoke test of that binary | Pass |
-| Playwright, 181 tests against the release binary | Pass, two full runs in a row |
+| Playwright, 188 tests against the release binary | Pass, two full runs in a row |
 
 **Expected in CI on the pull request**
 
@@ -196,7 +213,7 @@ From the repository root:
 | Server (format, clippy, tests, generated types) | Pass |
 | Style guard | Pass |
 | Release binary, Linux x86_64 static (build and smoke test) | Pass |
-| End-to-end tests against the Linux binary | Pass, 181 of 181 |
+| End-to-end tests against the Linux binary | Pass, 188 of 188 |
 | GitHub Release | Skipped (runs only on `phase-*` tags) |
 | Windows and macOS builds | Not run. They run only when the workflow is started by hand |
 

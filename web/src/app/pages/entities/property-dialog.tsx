@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useCatalog, useDataClient } from "@/data/client"
 import { PROPERTY_TYPE_ORDER, PROPERTY_TYPES } from "@/data/properties"
 import { RowCombobox } from "@/data/row-combobox"
+import { DateInput } from "@/forms/parts/date-input"
 import type { DataValues, EntityRecord, PropertyDefinition, PropertyType } from "@/generated"
 
 import { nameProblem, toName } from "./names"
@@ -397,22 +398,22 @@ function PropertyFields({
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <FieldLabel htmlFor={`${id}-earliest`}>Earliest</FieldLabel>
-            <Input
+            <DateInput
               id={`${id}-earliest`}
-              data-testid="property-earliest"
-              type="date"
-              value={draft.earliest}
-              onChange={(event) => set({ earliest: event.target.value })}
+              testId="property-earliest"
+              aria-label="Earliest"
+              value={draft.earliest || null}
+              onChange={(value) => set({ earliest: value ?? "" })}
             />
           </Field>
           <Field>
             <FieldLabel htmlFor={`${id}-latest`}>Latest</FieldLabel>
-            <Input
+            <DateInput
               id={`${id}-latest`}
-              data-testid="property-latest"
-              type="date"
-              value={draft.latest}
-              onChange={(event) => set({ latest: event.target.value })}
+              testId="property-latest"
+              aria-label="Latest"
+              value={draft.latest || null}
+              onChange={(value) => set({ latest: value ?? "" })}
             />
           </Field>
         </div>
@@ -501,11 +502,19 @@ function PropertyFields({
               value={draft.fill === "" ? null : draft.fill}
               onChange={(fill) => set({ fill: fill ?? "" })}
             />
+          ) : draft.type === "date" ? (
+            <DateInput
+              id={`${id}-fill`}
+              testId="property-fill"
+              aria-label={`Value for the ${rowsText}`}
+              value={draft.fill || null}
+              onChange={(value) => set({ fill: value ?? "" })}
+            />
           ) : (
             <Input
               id={`${id}-fill`}
               data-testid="property-fill"
-              type={draft.type === "number" ? "number" : draft.type === "date" ? "date" : "text"}
+              type={draft.type === "number" ? "number" : "text"}
               step="any"
               value={draft.fill}
               onChange={(event) => set({ fill: event.target.value })}

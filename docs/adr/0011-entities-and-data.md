@@ -127,7 +127,7 @@ Rows are routed by entity in the path, not by generated routes: an entity has it
 | --- | --- |
 | `select` | The properties to return. All when left out. A selected reference comes with its display value in `references`. |
 | `filter` | Typed conditions, all of which must hold (AND). At most 50. |
-| `search` | Quick search: rows where a text property, the label of a reference list value, or the display value of a referenced row contains the text, ignoring case. At most 200 characters. |
+| `search` | Quick search: rows where a text property, the label of a reference list value, or the display value of a referenced row contains the text, ignoring case. Plain text, at most 200 characters, with no control characters. |
 | `sort` | Up to 8 keys: a property, or `id`, `createdAt`, `updatedAt`. Text sorts without regard to case; a reference list sorts by the list's own order; a reference sorts by the target's display value. The id always breaks ties, so paging never repeats or skips a row. Without a sort, rows come in the order they were created. |
 | `page`, `pageSize` | From 1; 1 to 200 rows, 25 by default. |
 
@@ -144,7 +144,7 @@ The value must be of the property's own type, and a reference list value must be
 
 **Never a 500 for bad input.** The whole query is checked before any SQL is written. A property is looked up in the definition and replaced by its generated column, so a name that is not a property never reaches the database. Every problem is listed at once, as 400 `invalid_query`, at its place (`sort[0].property`, `filter[1].value`, `search`, `pageSize`). An unknown member is refused too, so a typo is never silently ignored.
 
-**SQL-like search text is refused** (spec section 4). Search text that contains a statement or comment marker (`;`, `--`, `/*`, `*/`) or a control character is a 400 at `search`. None of these appear in a name or a label; they only appear in attempts to break a query. Search text is a bound parameter in any case, so this is a clear answer to a bad request, not the defence against injection. An apostrophe is allowed, because people are called O'Brien. Values in filters and rows are never refused for looking like SQL: they are stored and compared as the text they are.
+**Search text is plain text.** It is only ever a bound parameter, so text that looks like SQL is something to look for, and nothing more: "Smith; Jones" returns its matches, and `'; DROP TABLE forms; --` finds nothing and harms nothing. The one thing refused, as a 400 at `search`, is a control character: none is ever typed, and SQLite's `LIKE` stops reading a pattern at a NUL, which would match every row. An unknown property or a malformed filter is still a 400 with details. (The spec's section 4 asked for SQL-like text to be refused; that wording was corrected after the Chrome checks: refusing `;` or `--` would refuse real searches and protect nothing, because values never reach the SQL text.)
 
 **One query language was chosen over GraphQL plus JsonLogic.** A GraphQL layer would bring a schema regenerated per entity, a second request model and its own error shape. JsonLogic is a general expression language that has to be translated into SQL and limited after the fact. A small, closed, typed format is checked completely in one place, documented in one table, and covers what the list, the picker and the API need. Arbitrary OR groups and nested selections were left out (see Consequences).
 
@@ -199,12 +199,13 @@ Each is one folder and one registry line, with unit tests (ADR 0004).
 
 - **Rows open forms.** The first column is a real link, `/forms/<form>/<id>`, so a row can be reached with Tab, opened with Enter, or opened in a new tab. A press anywhere on the row opens it too. New opens the form empty. The app provides how to open a form (`RowNavigationContext`); on the designer's canvas or in a test, nothing opens.
 - **Headers are buttons** that cycle ascending, descending and the table's own order, with `aria-sort` on the header cell.
-- **Filters** are one typed control per column: contains for text, a range for numbers and dates, a choice for yes/no and reference lists, an entity picker for references.
+- **Filters** are one typed control per column: contains for text, a range for numbers and dates, a choice for yes/no and reference lists, an entity picker for references. Dates are typed or picked with the app's own date input (`forms/parts/date-input.tsx`: the Date picker's text and calendar, outside a form), never the browser's.
 - **Search** waits 250 ms after the last keystroke.
 - **The page status** ("11–20 of 50"), and what was just done, are announced through a live region once the rows have arrived.
-- **States.** Empty states say whether nothing exists yet or nothing matches, with a way to clear the search and filters. A failed load says so and offers Retry. Loading shows skeleton rows, and the previous page stays on screen while the next one loads.
+- **States.** Empty states say whether nothing exists yet or nothing matches, with a way to clear the search and filters. A failed load says so in the server's own words (each detail's message, not only how many problems there were) and offers Retry; the page status never says "Loading…" beside an error. Loading shows skeleton rows, and the previous page stays on screen while the next one loads.
 - **Delete** asks in an in-app dialog that names the row by its display value, with focus on Cancel. A refusal (a referenced row) is shown in the dialog in the server's words.
-- **Narrow widths.** The table scrolls inside its own region, which is focusable and positioned so that text hidden for the eye cannot widen the page.
+- **Narrow widths.** The table scrolls inside its own region, which is focusable and positioned so that text hidden for the eye cannot widen the page. The row actions (Delete) are in a column pinned to the right edge, so they stay in view however wide the other columns grow.
+- **Focus between pages.** Moving to another page focuses its heading, so a screen reader says where the person is. Coming back to a list from a row, or from New, returns focus to the row's link or to New (`lib/heading-focus.ts`).
 - **Reference list columns** show status tags; reference columns show the display value.
 - **The view is kept** (page, sort, search, filters), per instance, for as long as the page is open, so going back from a row finds the list as it was left.
 
@@ -218,7 +219,7 @@ Two more parts are shared: `components/status-tag.tsx`, the tag itself, used by 
 
 ### 7. The Entities page
 
-Entities and reference lists are on two tabs, with a list on one side and the definition being edited on the other. Unlike the designer and the theme editor, nothing saves by itself. A change to a definition can be refused, and changes the shape of live data, so it is made when Save is pressed, and its refusal is shown where it was made. Each property is added and edited in a dialog of its own, with the limits of its type. A required property on an entity with rows asks for the value existing rows get. System properties are listed, locked. Deleting a property or an entity first reads the forms and names those that use it (bound inputs, tables listing it, settings naming the entity).
+Entities and reference lists are on two tabs, with a list on one side and the definition being edited on the other. Unlike the designer and the theme editor, nothing saves by itself. A change to a definition can be refused, and changes the shape of live data, so it is made when Save is pressed, and its refusal is shown where it was made. Save is available only when something changed; Discard puts back what is stored, and the status says "Unsaved changes" until one or the other. Items a reference list would lose are named before Save. A new entity or list starts with focus in its display name. Each property is added and edited in a dialog of its own, with the limits of its type. A required property on an entity with rows asks for the value existing rows get. System properties are listed, locked. Deleting a property or an entity first reads the forms and names those that use it (bound inputs, tables listing it, settings naming the entity).
 
 ## Alternatives considered
 

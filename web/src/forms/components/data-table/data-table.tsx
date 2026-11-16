@@ -20,6 +20,8 @@ import { DATA_KEYS, useCatalog, useDataClient, useRows } from "@/data/client"
 import { useRowNavigation } from "@/data/navigation"
 import { formatDate } from "@/data/properties"
 import type { DataRow, EntityDefinition, PropertyDefinition } from "@/generated"
+import { ApiRequestError } from "@/lib/api"
+import { focusIsFree } from "@/lib/heading-focus"
 
 import { ItemTag } from "../../parts/reference-list"
 import type { StaticProps } from "../../runtime"
@@ -36,6 +38,9 @@ import {
 } from "./view"
 
 const SEARCH_DELAY = 250
+
+/** `returnTo` for the New button. */
+const NEW = "\u0000new"
 
 type Column = { readonly property: PropertyDefinition; readonly header: string }
 
@@ -182,8 +187,25 @@ function Table({
   const formId = config.form ?? entity.defaultForm ?? null
   const canOpen = navigation !== null && formId !== null
   const open = (rowId: string | null) => {
-    if (navigation && formId !== null) navigation.open(formId, rowId)
+    if (!navigation || formId === null) return
+    // Remembered at once: the table goes away with the navigation.
+    rememberView(instance.id, { ...view, returnTo: rowId ?? NEW })
+    navigation.open(formId, rowId)
   }
+
+  // Back from a row, or from New: focus returns to what was pressed, once
+  // the rows are there, unless the person has already moved it. Once only.
+  const [returnTo] = React.useState(() => recallView(instance.id).returnTo ?? null)
+  const returned = React.useRef(false)
+  React.useEffect(() => {
+    if (returned.current || returnTo === null || page === undefined) return
+    returned.current = true
+    const target = document.querySelector<HTMLElement>(
+      `[data-testid="${returnTo === NEW ? "table-new" : `table-open-${returnTo}`}"]`,
+    )
+    if (target && focusIsFree()) target.focus()
+    rememberView(instance.id, { ...recallView(instance.id), returnTo: null })
+  }, [returnTo, page, instance.id])
 
   const regionRef = React.useRef<HTMLElement>(null)
   const [deleting, setDeleting] = React.useState<DataRow | null>(null)
@@ -306,15 +328,19 @@ function Table({
         />
       ) : null}
 
-      {rows.isError && page === undefined ? (
+      {rows.isError ? (
         <div
           role="alert"
           data-testid="table-error"
           className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm"
         >
-          <p className="min-w-0 flex-1 text-foreground">
-            The rows could not be loaded. {rows.error.message}
-          </p>
+          <div className="flex min-w-0 flex-1 flex-col gap-1 text-foreground">
+            <p className="font-medium">The rows could not be loaded.</p>
+            {/* The server's own reasons, not only how many there were. */}
+            {problemsOf(rows.error).map((problem) => (
+              <p key={problem}>{problem}</p>
+            ))}
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -325,7 +351,8 @@ function Table({
             Retry
           </Button>
         </div>
-      ) : (
+      ) : null}
+      {rows.isError && page === undefined ? null : (
         <section
           ref={regionRef}
           aria-label={`${label} rows`}
@@ -340,7 +367,7 @@ function Table({
         >
           <table className="w-full border-collapse text-left text-sm" {...slots.table}>
             <thead>
-              <tr className="border-b bg-muted/50 text-muted-foreground" {...slots.header}>
+              <tr className="border-b bg-muted text-muted-foreground" {...slots.header}>
                 {columns.map(({ property, header }) => {
                   const direction =
                     view.sort?.property === property.name ? view.sort.direction : null
@@ -384,7 +411,13 @@ function Table({
                   )
                 })}
                 {config.allowDelete ? (
-                  <th scope="col" className="w-10 px-3">
+                  // Pinned to the right edge: a row's actions stay in view however
+                  // wide the other columns grow.
+                  <th
+                    scope="col"
+                    data-pinned="end"
+                    className="sticky right-0 w-10 border-l bg-muted px-3"
+                  >
                     <span className="sr-only">Actions</span>
                   </th>
                 ) : null}
@@ -408,8 +441,8 @@ function Table({
                       data-testid={`table-row-${row.id}`}
                       className={
                         canOpen
-                          ? "cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted/50"
-                          : "border-b last:border-b-0"
+                          ? "group/row cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted"
+                          : "group/row border-b last:border-b-0"
                       }
                       onClick={(event) => {
                         // A press on the row's own link or button is theirs.
@@ -450,7 +483,10 @@ function Table({
                         </td>
                       ))}
                       {config.allowDelete ? (
-                        <td className="px-2 py-1 text-right">
+                        <td
+                          data-pinned="end"
+                          className="sticky right-0 border-l bg-card px-2 py-1 text-right transition-colors group-hover/row:bg-muted"
+                        >
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -496,8 +532,11 @@ function Table({
 
       <div className="flex flex-wrap items-center justify-between gap-2" {...slots.pagination}>
         <p data-testid="table-page-status" className="text-sm text-muted-foreground tabular-nums">
-          {rows.isError && page !== undefined
-            ? "These rows may be out of date: the last request failed."
+          {rows.isError
+            ? // Beside an error, never "Loading…": nothing is on its way.
+              page === undefined
+              ? ""
+              : `${status}. These rows may be out of date.`
             : status === ""
               ? "Loading…"
               : status}
@@ -556,6 +595,14 @@ function Table({
       </ConfirmDialog>
     </div>
   )
+}
+
+/** Why a request failed, in the server's words: each detail, or else its message. */
+function problemsOf(error: Error): string[] {
+  if (error instanceof ApiRequestError && error.details.length > 0) {
+    return error.details.map((detail) => detail.message)
+  }
+  return [error.message]
 }
 
 /** One value as a person reads it. */

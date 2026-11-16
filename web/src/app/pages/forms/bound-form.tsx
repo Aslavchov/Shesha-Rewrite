@@ -222,9 +222,16 @@ function Editor({
   const [mode, setMode] = React.useState<FormMode>("edit")
   /** The row as the server last gave it: what Save is based on. Null until one exists. */
   const [row, setRow] = React.useState(loaded)
-  const [save, setSave] = React.useState<SaveState>(
-    arrival.created ? { kind: "saved", created: true } : { kind: "idle" },
-  )
+  const [save, setSave] = React.useState<SaveState>({ kind: "idle" })
+  // A row just created arrives here at its new address, as a new form. What
+  // a live region holds when it appears is not read out, so the result is
+  // put there a moment after, to be heard.
+  const created = arrival.created
+  React.useEffect(() => {
+    if (!created) return
+    const timer = window.setTimeout(() => setSave({ kind: "saved", created: true }), 100)
+    return () => window.clearTimeout(timer)
+  }, [created])
   const [isReloading, setIsReloading] = React.useState(false)
 
   const readOnlyPaths = React.useMemo(

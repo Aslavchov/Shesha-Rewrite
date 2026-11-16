@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RowNavigationContext } from "@/data/navigation"
 import { fakeApi, PERSON, withData } from "@/data/testing"
 import { createRegistry, FormRenderer } from "@/forms/runtime"
+import { ApiRequestError } from "@/lib/api"
 
 import { formDocument, instance } from "../../testing/render-form"
 import { dataTable } from "."
@@ -150,6 +151,31 @@ describe("data table", () => {
     for (const id of ["table-new", "table-delete-p1", "table-search", "table-filters"]) {
       expect(screen.queryByTestId(id)).not.toBeInTheDocument()
     }
+  })
+
+  it("keeps the row actions in a column pinned to the right edge", async () => {
+    renderTable()
+    await waitFor(() => expect(status()).toHaveTextContent("1–3 of 7"))
+    const cell = screen.getByTestId("table-delete-p1").closest("td")!
+    expect(cell).toHaveAttribute("data-pinned", "end")
+    expect(cell).toHaveClass("sticky", "right-0")
+    expect(screen.getByText("Actions").closest("th")).toHaveAttribute("data-pinned", "end")
+  })
+
+  it("shows the server's reasons when a query fails, and never Loading… beside them", async () => {
+    const { api } = renderTable()
+    await waitFor(() => expect(status()).toHaveTextContent("1–3 of 7"))
+    vi.spyOn(api, "query").mockRejectedValue(
+      new ApiRequestError("invalid_query", "The query has 1 problem.", 400, [
+        { path: "select[1]", message: 'Person has no property named "notes".' },
+      ]),
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByTestId("table-sort-surname"))
+    const error = await screen.findByTestId("table-error")
+    expect(error).toHaveTextContent('Person has no property named "notes".')
+    expect(error).not.toHaveTextContent("The query has 1 problem")
+    expect(status()).not.toHaveTextContent("Loading")
   })
 
   it("says what is missing without an entity", () => {
