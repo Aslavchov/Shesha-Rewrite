@@ -1,4 +1,5 @@
 import * as React from "react"
+import { cn } from "cn"
 import { ChevronLeftIcon, FileQuestionIcon } from "lucide-react"
 import { Link, useParams } from "react-router"
 
@@ -15,13 +16,21 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { registry } from "@/forms/registry"
-import { type FormMode, FormRenderer, type NestedValues } from "@/forms/runtime"
-import type { FormRecord } from "@/generated"
+import {
+  type FormMode,
+  FormRenderer,
+  formSettings,
+  wantsWidth,
+  type NestedValues,
+  resolveSettings,
+} from "@/forms/runtime"
+import { FORM_FORMAT_VERSION, type FormRecord } from "@/generated"
 import { ApiRequestError } from "@/lib/api"
 
 import { useForm } from "../../api/use-forms"
 import { Page } from "../../layout/page"
 import { FORMS_PAGE } from "../../pages"
+import { BoundForm } from "./bound-form"
 import { ModeSwitch } from "./mode-switch"
 import { RequestError } from "./request-error"
 
@@ -29,10 +38,26 @@ const FORM_NOT_FOUND = "form_not_found"
 
 /** One form, rendered: fill it in, or view it read-only. */
 export function FormPage() {
-  const { formId = "" } = useParams()
+  const { formId = "", rowId } = useParams()
   const form = useForm(formId)
 
   if (form.data !== undefined) {
+    // A form bound to an entity loads and saves a row of it (Phase 5).
+    const entity =
+      form.data.document.formatVersion === FORM_FORMAT_VERSION
+        ? resolveSettings(formSettings, form.data.document.settings).settings.entity
+        : null
+    if (entity !== null) {
+      return (
+        <BoundForm
+          // Another form, another revision of it, or another row starts afresh.
+          key={`${form.data.id}@${form.data.revision}`}
+          form={form.data}
+          entityName={entity}
+          rowId={rowId ?? null}
+        />
+      )
+    }
     // Keyed by id and revision, so another form, or a newer revision of this
     // one, starts from its own defaults.
     return <LoadedForm key={`${form.data.id}@${form.data.revision}`} form={form.data} />
@@ -68,7 +93,13 @@ function LoadedForm({ form }: { form: FormRecord }) {
 
   return (
     <Page title={name} description={form.document.description} breadcrumb={<BackToForms />}>
-      <div className="flex max-w-2xl flex-col gap-6">
+      {/* A form that lists data takes the page's width; fields read best in a column. */}
+      <div
+        className={cn(
+          "flex min-w-0 flex-col gap-6",
+          wantsWidth(form.document, registry) ? "max-w-full" : "max-w-2xl",
+        )}
+      >
         {/* The switch sits on the form it controls. */}
         <div className="flex flex-col gap-2">
           <ModeSwitch mode={mode} onChange={setMode} />
@@ -90,11 +121,11 @@ function LoadedForm({ form }: { form: FormRecord }) {
   )
 }
 
-function BackToForms() {
+export function BackToForms() {
   return (
     <Link
       to={FORMS_PAGE.path}
-      data-testid="form-back-link"
+      data-testid="form-back"
       className="-ml-0.5 flex w-fit items-center gap-0.5 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
       <ChevronLeftIcon aria-hidden="true" className="size-4" />

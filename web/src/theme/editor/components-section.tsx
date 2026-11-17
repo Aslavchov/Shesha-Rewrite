@@ -7,6 +7,7 @@ import { AppearanceEditor } from "@/designer/appearance/appearance-editor"
 import { slotLabel } from "@/designer/appearance/colours"
 
 import { useEndRun, useThemeEditor, useThemeEditorContext } from "./context"
+import { gridTarget } from "./grid-keys"
 import { EditorSection } from "./section"
 
 /**
@@ -23,33 +24,74 @@ export function ComponentsSection() {
   // What the theme holds for types this build does not know: kept, and flagged.
   const unknown = Object.keys(components ?? {}).filter((type) => !registry.has(type))
 
+  // The grid is one Tab stop, like the designer's toolbox (Phase 5, section 8):
+  // the arrow keys move between the components, Home and End go to the first
+  // and the last, and Enter or Space chooses the one with focus.
+  const order = definitions.map((definition) => definition.type)
+  /** The component last focused: it holds the Tab stop. Until then, the one being styled. */
+  const [current, setCurrent] = React.useState<string | null>(null)
+  const held = current ?? selected
+  const tabStop = held !== null && order.includes(held) ? held : order[0]
+  const gridRef = React.useRef<HTMLUListElement>(null)
+
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    const items = [
+      ...(gridRef.current?.querySelectorAll<HTMLElement>("[data-component-item]") ?? []),
+    ]
+    const index = items.indexOf(event.currentTarget as HTMLElement)
+    if (index === -1) return
+    const target = gridTarget(event.key, index, items.length, columnsOf(items))
+    if (target === null) return
+    // The arrow keys move between components here; they do not scroll the page.
+    event.preventDefault()
+    setCurrent(items[target].dataset.componentItem ?? null)
+    items[target].focus()
+  }
+
   return (
     <EditorSection
       testId="theme-components"
       title="Component defaults"
       description="How each kind of component looks unless a form's author overrides it on one instance."
     >
-      <ul aria-label="Components" className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+      <ul
+        ref={gridRef}
+        aria-label="Components"
+        // As many columns as fit tiles of at least the tile size: fewer when
+        // the text is larger, so names break only between words.
+        className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--sys-size-tile)),1fr))] gap-1"
+      >
         {definitions.map((definition) => {
           const count = Object.keys(components?.[definition.type] ?? {}).length
           const isSelected = selected === definition.type
           return (
-            <li key={definition.type} className="min-w-0">
+            <li key={definition.type} className="flex min-w-0">
               <button
                 type="button"
                 data-testid={`theme-component-${definition.type}`}
+                data-component-item={definition.type}
                 aria-pressed={isSelected}
+                tabIndex={definition.type === tabStop ? 0 : -1}
                 className={cn(
-                  "flex h-8 w-full min-w-0 items-center gap-2 rounded-md border border-transparent px-2 text-left text-sm hover:bg-muted",
+                  // As tall as its name needs: a name wraps, it is never cut off.
+                  "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-md border border-transparent px-2 py-1 text-left text-sm hover:bg-muted",
                   "aria-pressed:border-primary/30 aria-pressed:bg-primary/10 aria-pressed:font-medium",
                 )}
+                onFocus={() => setCurrent(definition.type)}
+                onKeyDown={onKeyDown}
                 onClick={() => store.selectComponent(isSelected ? null : definition.type)}
               >
                 <definition.icon
                   aria-hidden="true"
                   className="size-4 shrink-0 text-muted-foreground"
                 />
-                <span className="min-w-0 flex-1 truncate">{definition.displayName}</span>
+                <span
+                  data-testid={`theme-component-${definition.type}-name`}
+                  className="min-w-0 flex-1 wrap-normal break-normal"
+                >
+                  {definition.displayName}
+                </span>
                 {count > 0 ? (
                   <span className="shrink-0 rounded-sm bg-primary/10 px-1.5 text-xs text-primary">
                     {count}
@@ -104,6 +146,13 @@ export function ComponentsSection() {
   )
 }
 
+/** How many columns the grid has now: the items on the first one's row. */
+function columnsOf(items: readonly HTMLElement[]): number {
+  const top = items[0]?.offsetTop
+  const columns = items.findIndex((item) => item.offsetTop !== top)
+  return columns === -1 ? items.length : columns
+}
+
 function ComponentDefaults({ type }: { type: string }) {
   const { store, registry } = useThemeEditorContext()
   const styles = useThemeEditor((snapshot) => snapshot.editor.document.components?.[type])
@@ -148,7 +197,9 @@ function ComponentDefaults({ type }: { type: string }) {
           <Button
             variant="ghost"
             size="xs"
-            onClick={() => store.run({ type: "reset-slot", component: type, slot })}
+            onClick={() =>
+              store.run({ type: "reset-slot", component: type, name: definition.displayName, slot })
+            }
           >
             Remove
           </Button>
@@ -162,13 +213,16 @@ function ComponentDefaults({ type }: { type: string }) {
           store.run({
             type: "set-style",
             component: type,
+            name: definition.displayName,
             slot,
             property,
             value,
             ...(run ? { merge: run } : {}),
           })
         }
-        onResetSlot={(slot) => store.run({ type: "reset-slot", component: type, slot })}
+        onResetSlot={(slot) =>
+          store.run({ type: "reset-slot", component: type, name: definition.displayName, slot })
+        }
         onRunEnd={endRun}
         resetKey={epoch}
         onPoint={(slot) => store.setHighlight(slot)}

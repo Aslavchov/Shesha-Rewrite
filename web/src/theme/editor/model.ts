@@ -63,16 +63,25 @@ export type ThemeCommand =
   /** The base UI text size, in pixels. */
   | Merged<{ readonly type: "set-text-size"; readonly value: number }>
   | { readonly type: "set-density"; readonly value: DensityStep }
-  /** One style property of one slot of a component type's defaults. `undefined` removes it. */
+  /**
+   * One style property of one slot of a component type's defaults. `undefined`
+   * removes it. `name` is what the component is called, to say what changed.
+   */
   | Merged<{
       readonly type: "set-style"
       readonly component: string
+      readonly name: string
       readonly slot: string
       readonly property: StyleProperty
       readonly value: SlotStyle[StyleProperty] | undefined
     }>
   /** Every default of one slot of a component type. */
-  | { readonly type: "reset-slot"; readonly component: string; readonly slot: string }
+  | {
+      readonly type: "reset-slot"
+      readonly component: string
+      readonly name: string
+      readonly slot: string
+    }
   /** Every default of one component type: also how an unknown type leaves the theme. */
   | { readonly type: "reset-component"; readonly component: string; readonly name: string }
   /** Another document as one step: discarding the draft, or resetting it to the built-in look. */
@@ -124,6 +133,14 @@ export const isBuiltIn = (theme: ThemeDocument) => sameTheme(theme, EMPTY_THEME)
 
 const MODE_SUFFIX: Record<Mode, string> = { light: "", dark: " in dark mode" }
 
+/**
+ * A part of a component in words, naming the component: "Card's whole
+ * component", "Tabs' label". Several components have a part of the same
+ * name, so the part alone does not say what changed (Phase 5, section 8).
+ */
+const partOf = (name: string, slot: string) =>
+  `${name}${name.endsWith("s") ? "'" : "'s"} ${slotLabel(slot).toLowerCase()}`
+
 type Change = { document: ThemeDocument; label: string; say: string }
 
 /** What a command makes of the document, or null when it would leave it as it is. */
@@ -162,7 +179,7 @@ function apply(document: ThemeDocument, command: ThemeCommand): Change | null {
       if (sameTheme(current?.[property], value)) return null
       const style = withKey(current, property, value)
       const label = STYLE_PROPERTY_LABELS[property]
-      const part = slotLabel(slot).toLowerCase()
+      const part = partOf(command.name, slot)
       return {
         document: withSlot(document, component, slot, style),
         label: `Change ${label.toLowerCase()} of ${part}`,
@@ -174,7 +191,7 @@ function apply(document: ThemeDocument, command: ThemeCommand): Change | null {
     }
     case "reset-slot": {
       if (document.components?.[command.component]?.[command.slot] === undefined) return null
-      const part = slotLabel(command.slot).toLowerCase()
+      const part = partOf(command.name, command.slot)
       return {
         document: withSlot(document, command.component, command.slot, undefined),
         label: `Reset ${part}`,

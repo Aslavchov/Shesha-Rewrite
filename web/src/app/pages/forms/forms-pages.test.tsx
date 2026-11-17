@@ -156,7 +156,7 @@ describe("/forms/<id>", () => {
     expect(screen.getByRole("textbox", { name: "Full name" })).toBeInTheDocument()
     expect(screen.getByTestId("form-mode-edit")).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByTestId("form-mode-read-only")).toHaveAttribute("aria-pressed", "false")
-    expect(screen.getByTestId("form-back-link")).toHaveAttribute("href", "/forms")
+    expect(screen.getByTestId("form-back")).toHaveAttribute("href", "/forms")
   })
 
   it("shows a success message and the submitted data, nested, after a valid submit", async () => {

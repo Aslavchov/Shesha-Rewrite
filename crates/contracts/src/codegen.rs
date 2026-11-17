@@ -10,12 +10,20 @@ use std::{fs, io};
 
 use ts_rs::{Config, TS};
 
+use crate::data::DataValuesTs;
 use crate::forms::SettingsTs;
 use crate::{
     ApiError, ApiErrorBody, AppInfo, ColorToken, ColorValue, ComponentInstance, CreateFormRequest,
     DbStatus, Density, ErrorDetail, FontWeight, FormDocument, FormList, FormRecord, FormSummary,
     HealthResponse, HealthStatus, Radius, SaveThemeDraftRequest, SlotStyle, Space, ThemeColor,
     ThemeColors, ThemeDocument, ThemeRecord, ThemeRevisionRequest, ThemeState, UpdateFormRequest,
+};
+use crate::{
+    CreateEntityRequest, CreateReferenceListRequest, CreateRowRequest, DataFilter, DataPage,
+    DataQuery, DataRow, DataSort, EntityDefinition, EntityList, EntityRecord, FilterOp, ItemColor,
+    PropertyDefinition, PropertyType, ReferenceListDefinition, ReferenceListItem,
+    ReferenceListList, ReferenceListRecord, SortDirection, UpdateEntityRequest,
+    UpdateReferenceListRequest, UpdateRowRequest,
 };
 
 /// The one command that regenerates the files. Named in every file header.
@@ -68,6 +76,31 @@ pub fn render() -> Files {
     add_type::<ThemeRevisionRequest>(&cfg, &mut types);
     add_type::<ThemeState>(&cfg, &mut types);
     add_type::<UpdateFormRequest>(&cfg, &mut types);
+    // Phase 5: entities, reference lists and rows (ADR 0011).
+    add_type::<CreateEntityRequest>(&cfg, &mut types);
+    add_type::<CreateReferenceListRequest>(&cfg, &mut types);
+    add_type::<CreateRowRequest>(&cfg, &mut types);
+    add_type::<DataFilter>(&cfg, &mut types);
+    add_type::<DataPage>(&cfg, &mut types);
+    add_type::<DataQuery>(&cfg, &mut types);
+    add_type::<DataRow>(&cfg, &mut types);
+    add_type::<DataSort>(&cfg, &mut types);
+    add_type::<DataValuesTs>(&cfg, &mut types);
+    add_type::<EntityDefinition>(&cfg, &mut types);
+    add_type::<EntityList>(&cfg, &mut types);
+    add_type::<EntityRecord>(&cfg, &mut types);
+    add_type::<FilterOp>(&cfg, &mut types);
+    add_type::<ItemColor>(&cfg, &mut types);
+    add_type::<PropertyDefinition>(&cfg, &mut types);
+    add_type::<PropertyType>(&cfg, &mut types);
+    add_type::<ReferenceListDefinition>(&cfg, &mut types);
+    add_type::<ReferenceListItem>(&cfg, &mut types);
+    add_type::<ReferenceListList>(&cfg, &mut types);
+    add_type::<ReferenceListRecord>(&cfg, &mut types);
+    add_type::<SortDirection>(&cfg, &mut types);
+    add_type::<UpdateEntityRequest>(&cfg, &mut types);
+    add_type::<UpdateReferenceListRequest>(&cfg, &mut types);
+    add_type::<UpdateRowRequest>(&cfg, &mut types);
 
     let mut barrel = header();
     barrel.push_str("export { APP_NAME } from \"./app\";\n");
@@ -77,6 +110,15 @@ pub fn render() -> Files {
     barrel.push_str(&format!(
         "export {{ {} }} from \"./theme\";\n",
         THEME_CONSTANTS.join(", ")
+    ));
+    barrel.push_str(&format!(
+        "export {{ {} }} from \"./data\";\n",
+        DATA_CONSTANTS
+            .iter()
+            .map(|(name, _)| *name)
+            .chain(["ITEM_COLORS", "SYSTEM_PROPERTIES"])
+            .collect::<Vec<_>>()
+            .join(", ")
     ));
     for name in types.keys() {
         barrel.push_str(&format!("export type {{ {name} }} from \"./{name}\";\n"));
@@ -107,6 +149,7 @@ pub fn render() -> Files {
         ),
     );
     files.insert(format!("theme.{EXTENSION}"), theme_constants());
+    files.insert(format!("data.{EXTENSION}"), data_constants());
     files.insert(format!("index.{EXTENSION}"), barrel);
     files
 }
@@ -203,6 +246,54 @@ fn theme_constants() -> String {
     for (name, value) in THEME_CONSTANTS[1..].iter().zip(numbers) {
         contents.push_str(&format!("export const {name} = {value};\n"));
     }
+    contents
+}
+
+/// The limits of definitions and of the data API, as `data.ts` exports them.
+const DATA_CONSTANTS: [(&str, u32); 11] = [
+    ("DATA_DEFAULT_PAGE_SIZE", crate::DATA_DEFAULT_PAGE_SIZE),
+    ("DATA_MAX_FILTERS", crate::DATA_MAX_FILTERS),
+    ("DATA_MAX_PAGE_SIZE", crate::DATA_MAX_PAGE_SIZE),
+    ("DATA_MAX_SEARCH_CHARS", crate::DATA_MAX_SEARCH_CHARS),
+    ("DATA_MAX_SORTS", crate::DATA_MAX_SORTS),
+    (
+        "DEFINITION_MAX_DISPLAY_NAME_CHARS",
+        crate::DEFINITION_MAX_DISPLAY_NAME_CHARS,
+    ),
+    (
+        "DEFINITION_MAX_HELP_TEXT_CHARS",
+        crate::DEFINITION_MAX_HELP_TEXT_CHARS,
+    ),
+    (
+        "DEFINITION_MAX_NAME_CHARS",
+        crate::DEFINITION_MAX_NAME_CHARS,
+    ),
+    ("ENTITY_MAX_PROPERTIES", crate::ENTITY_MAX_PROPERTIES),
+    ("REFERENCE_LIST_MAX_ITEMS", crate::REFERENCE_LIST_MAX_ITEMS),
+    ("TEXT_MAX_LENGTH", crate::TEXT_MAX_LENGTH),
+];
+
+/// `data.ts`: the limits above, the item colours and the system properties.
+fn data_constants() -> String {
+    let quoted = |names: &[&str]| -> String {
+        names
+            .iter()
+            .map(|name| format!("{name:?}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let mut contents = header();
+    for (name, value) in DATA_CONSTANTS {
+        contents.push_str(&format!("export const {name} = {value};\n"));
+    }
+    contents.push_str(&format!(
+        "export const ITEM_COLORS = [{}] as const;\n",
+        quoted(&crate::ITEM_COLORS)
+    ));
+    contents.push_str(&format!(
+        "export const SYSTEM_PROPERTIES = [{}] as const;\n",
+        quoted(&crate::SYSTEM_PROPERTIES)
+    ));
     contents
 }
 

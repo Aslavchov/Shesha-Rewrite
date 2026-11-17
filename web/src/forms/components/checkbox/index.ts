@@ -16,6 +16,13 @@ export const checkbox = defineInput({
   defaultValue: (resolved) => resolved.defaultValue,
   rules: [requiredChecked],
   slots,
+  forProperty: (property) =>
+    property.type === "boolean"
+      ? {
+          label: property.displayName,
+          ...(property.helpText ? { helpText: property.helpText } : {}),
+        }
+      : null,
   Edit: CheckboxEdit,
   ReadOnly: CheckboxReadOnly,
 })

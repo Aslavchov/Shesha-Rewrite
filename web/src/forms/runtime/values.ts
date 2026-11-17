@@ -9,6 +9,8 @@ export type ValueTypes = {
   date: string
   /** The chosen option's value. */
   option: string
+  /** The id of a row of another entity. Added in Phase 5 (ADR 0011). */
+  reference: string
 }
 
 export type ValueType = keyof ValueTypes
@@ -26,6 +28,7 @@ export const isValueOfType: { [K in ValueType]: (value: FieldValue) => value is 
   boolean: (value): value is boolean => typeof value === "boolean",
   date: (value): value is string => isIsoDate(value),
   option: (value): value is string => typeof value === "string",
+  reference: (value): value is string => typeof value === "string",
 }
 
 /**
@@ -73,4 +76,14 @@ function define(target: NestedValues, key: string, value: FieldValue | NestedVal
     writable: true,
     configurable: true,
   })
+}
+
+/** The value stored under a dotted path in nested values, or undefined when there is none. */
+export function valueAtPath(values: NestedValues, path: string): FieldValue | undefined {
+  let current: FieldValue | NestedValues | undefined = values
+  for (const segment of path.split(".")) {
+    if (!isNested(current) || !Object.hasOwn(current, segment)) return undefined
+    current = current[segment]
+  }
+  return isNested(current) ? undefined : current
 }

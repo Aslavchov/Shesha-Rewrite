@@ -10,7 +10,7 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
-use crate::forms;
+use crate::{entities, forms};
 
 pub static MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -62,7 +62,11 @@ pub async fn is_reachable(pool: &SqlitePool) -> bool {
 
 /// Demo data for `--demo`: what each phase adds on top of the migrations.
 async fn seed(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    forms::seed::insert(pool).await
+    forms::seed::insert(pool).await?;
+    // The seed is checked like any request; only the database can fail it.
+    entities::seed::insert(pool)
+        .await
+        .map_err(|error| sqlx::Error::Protocol(format!("cannot insert the demo entities: {error}")))
 }
 
 /// Removes the database file and the write-ahead-log files SQLite keeps

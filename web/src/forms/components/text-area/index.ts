@@ -16,6 +16,15 @@ export const textArea = defineInput({
   defaultValue: (resolved) => resolved.defaultValue,
   rules: [required, maxLength],
   slots,
+  forProperty: (property) =>
+    property.type === "text" && property.multiline
+      ? {
+          label: property.displayName,
+          ...(property.helpText ? { helpText: property.helpText } : {}),
+          ...(property.required ? { required: true } : {}),
+          ...(property.maxLength === undefined ? {} : { maxLength: property.maxLength }),
+        }
+      : null,
   Edit: TextAreaEdit,
   ReadOnly: TextAreaReadOnly,
 })

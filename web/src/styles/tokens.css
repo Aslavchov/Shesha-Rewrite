@@ -303,5 +303,8 @@
   /* The designer: its toolbox on the left, and the outline and properties on the right. */
   --sys-size-designer-toolbox: 15rem;
   --sys-size-designer-panel: 19rem;
+  /* The narrowest a tile with an icon and a name may be: in em, so it grows
+     with the text, and the longest word of a name always fits on a line. */
+  --sys-size-tile: 10em;
   --sys-scrim-blur: 4px;
 }

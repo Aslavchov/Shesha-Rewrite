@@ -11,7 +11,7 @@ use contracts::{ApiError, FormList, FormRecord, MAX_JSON_DEPTH, MAX_REQUEST_BYTE
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use server::assets::AssetSource;
-use server::forms::seed::PERSON_DETAILS_ID;
+use server::forms::seed::{PEOPLE_ID, PERSON_DETAILS_ID, PERSON_ID};
 use server::{AppState, db, router};
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -117,9 +117,14 @@ async fn a_new_database_has_no_forms() {
 async fn demo_seeds_the_person_details_form() {
     let (state, _dir) = app(true).await;
 
-    let forms = list(&state).await.forms;
+    // Phase 5 seeds two more forms beside it: People and Person.
+    let forms: Vec<_> = list(&state)
+        .await
+        .forms
+        .into_iter()
+        .filter(|form| form.id == PERSON_DETAILS_ID)
+        .collect();
     assert_eq!(forms.len(), 1);
-    assert_eq!(forms[0].id, PERSON_DETAILS_ID);
     assert_eq!(forms[0].name, "Person details");
     assert!(
         forms[0]
@@ -569,7 +574,12 @@ async fn demo_puts_the_forms_back_to_the_seed_state() {
         assets: Arc::new(NoAssets),
     };
 
-    let forms = list(&state).await.forms;
-    assert_eq!(forms.len(), 1);
-    assert_eq!(forms[0].id, PERSON_DETAILS_ID);
+    let mut ids: Vec<String> = list(&state)
+        .await
+        .forms
+        .into_iter()
+        .map(|form| form.id)
+        .collect();
+    ids.sort();
+    assert_eq!(ids, [PEOPLE_ID, PERSON_ID, PERSON_DETAILS_ID]);
 }

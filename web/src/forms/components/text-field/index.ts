@@ -17,6 +17,15 @@ export const textField = defineInput({
   constraints: [lengthRange],
   rules: [required, minLength, maxLength, pattern],
   slots,
+  forProperty: (property) =>
+    property.type === "text" && !property.multiline
+      ? {
+          label: property.displayName,
+          ...(property.helpText ? { helpText: property.helpText } : {}),
+          ...(property.required ? { required: true } : {}),
+          ...(property.maxLength === undefined ? {} : { maxLength: property.maxLength }),
+        }
+      : null,
   Edit: TextFieldEdit,
   ReadOnly: TextFieldReadOnly,
 })

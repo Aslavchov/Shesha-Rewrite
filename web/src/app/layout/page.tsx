@@ -1,7 +1,10 @@
 import * as React from "react"
 import { cn } from "cn"
+import { useLocation } from "react-router"
 
 import { APP_NAME } from "@/generated"
+
+import { focusHeading } from "@/lib/heading-focus"
 
 /**
  * The frame every page renders inside <main>: the document title, the single
@@ -25,6 +28,9 @@ export function Page({
   wide?: boolean
   children?: React.ReactNode
 }) {
+  const heading = React.useRef<HTMLHeadingElement>(null)
+  const { key } = useLocation()
+  React.useEffect(() => focusHeading(heading.current, key), [key])
   return (
     <div
       className={cn(
@@ -37,6 +43,9 @@ export function Page({
         <div className="flex min-w-0 flex-col gap-1">
           {breadcrumb}
           <h1
+            ref={heading}
+            // Focused when the page is moved to, never in the Tab order.
+            tabIndex={-1}
             data-testid="page-title"
             className="font-heading text-2xl font-semibold tracking-tight text-foreground"
           >

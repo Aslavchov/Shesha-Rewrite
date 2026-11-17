@@ -1201,7 +1201,8 @@ test.describe("C2-14 Small fixes from earlier phases", () => {
     // The form that is not found is a 404 from the API.
     expectRefusal(404)
     for (const [path, testId] of [
-      ["/entities", "empty-state"],
+      // Entities was built in Phase 5; Settings is still to come.
+      ["/settings", "empty-state"],
       ["/nope", "not-found"],
       ["/forms/nope", "form-not-found"],
     ]) {

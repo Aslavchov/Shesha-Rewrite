@@ -1185,6 +1185,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "rust-embed",
+ "serde",
  "serde_json",
  "serde_path_to_error",
  "sqlx",

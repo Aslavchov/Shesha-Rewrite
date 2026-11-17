@@ -17,6 +17,7 @@ import {
   type SettingEditorProps,
   TextEditor,
 } from "./editors"
+import { ColumnsEditor, EntityEditor, FormEditor, ReferenceListEditor } from "./data-editors"
 import { MessagesEditor, OptionsEditor, TabsEditor } from "./list-editors"
 import { useEpoch } from "./panel-run"
 import { describedBy } from "./described-by"
@@ -40,6 +41,10 @@ const EDITORS: Record<SettingKind, React.ComponentType<SettingEditorProps>> = {
   "number-list": NumberListEditor,
   messages: MessagesEditor,
   tabs: TabsEditor,
+  entity: EntityEditor,
+  "reference-list": ReferenceListEditor,
+  form: FormEditor,
+  columns: ColumnsEditor,
 }
 
 const GROUPS: readonly { group: SettingGroup; title: string }[] = [

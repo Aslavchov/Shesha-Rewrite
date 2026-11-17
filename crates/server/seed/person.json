@@ -1,0 +1,109 @@
+{
+  "formatVersion": 1,
+  "name": "Person",
+  "description": "Demo form bound to the Person entity: it loads a row, and Save stores it.",
+  "settings": { "entity": "person" },
+  "components": [
+    {
+      "id": "c_b8n3x6q1ws",
+      "type": "columns",
+      "name": "nameRow",
+      "regions": {
+        "col1": [
+          {
+            "id": "c_c5r9d2v7ht",
+            "type": "text-field",
+            "name": "firstName",
+            "bind": "firstName",
+            "settings": { "label": "First name", "required": true, "maxLength": 50 }
+          }
+        ],
+        "col2": [
+          {
+            "id": "c_d1j6y4z8gm",
+            "type": "text-field",
+            "name": "surname",
+            "bind": "surname",
+            "settings": { "label": "Surname", "required": true, "maxLength": 50 }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_e7w2f5b3nk",
+      "type": "text-field",
+      "name": "email",
+      "bind": "email",
+      "settings": {
+        "label": "Email",
+        "placeholder": "name@example.com",
+        "maxLength": 254,
+        "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
+        "messages": { "pattern": "Enter a valid email address" }
+      }
+    },
+    {
+      "id": "c_f3h8s1c6ra",
+      "type": "columns",
+      "name": "detailsRow",
+      "regions": {
+        "col1": [
+          {
+            "id": "c_g9k4p7t2xd",
+            "type": "date-picker",
+            "name": "dateOfBirth",
+            "bind": "dateOfBirth",
+            "settings": { "label": "Date of birth" }
+          }
+        ],
+        "col2": [
+          {
+            "id": "c_h2m5q8w3yb",
+            "type": "number-field",
+            "name": "dependants",
+            "bind": "dependants",
+            "settings": { "label": "Dependants", "wholeNumber": true, "min": 0, "max": 20 }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_j6v1z4n9ec",
+      "type": "columns",
+      "name": "workRow",
+      "regions": {
+        "col1": [
+          {
+            "id": "c_k4x7a2r5fj",
+            "type": "reference-list-select",
+            "name": "status",
+            "bind": "status",
+            "settings": { "label": "Status", "referenceList": "personStatus" }
+          }
+        ],
+        "col2": [
+          {
+            "id": "c_m8b3g6s1vp",
+            "type": "entity-picker",
+            "name": "organisation",
+            "bind": "organisation",
+            "settings": { "label": "Organisation", "entity": "organisation" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c_n1d5h9t4wq",
+      "type": "text-area",
+      "name": "notes",
+      "bind": "notes",
+      "settings": { "label": "Notes" }
+    },
+    {
+      "id": "c_p7f2k6y3zr",
+      "type": "button",
+      "name": "save",
+      "settings": { "label": "Save" }
+    }
+  ]
+}

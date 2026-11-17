@@ -25,6 +25,11 @@ export type SettingKind =
   | "number-list"
   | "messages"
   | "tabs"
+  // Phase 5 (ADR 0011): settings that name something defined elsewhere.
+  | "entity"
+  | "reference-list"
+  | "form"
+  | "columns"
 
 export type Choice<T extends string = string> = { readonly value: T; readonly label: string }
 
@@ -60,6 +65,11 @@ export type Setting<T> = {
   readonly limits?: NumberLimits
   /** For `text` settings: the text may run over several lines. */
   readonly multiline?: boolean
+  /**
+   * For `columns` settings: the entity whose properties the columns show,
+   * given the instance's other settings. Added in Phase 5 (ADR 0011).
+   */
+  readonly entityFrom?: (settings: ResolvedSettings) => string | null
   /** Reads a stored JSON value; `undefined` means it is not valid here. */
   readonly parse: (stored: unknown) => T | undefined
 }
@@ -275,6 +285,60 @@ export function optionalProportions(meta: Meta): Setting<readonly number[] | nul
       const isProportion = (item: unknown): item is number =>
         readNumber(item, { min: 1, whole: true }) !== undefined
       return stored.every(isProportion) ? stored : undefined
+    },
+  }
+}
+
+/** Optional text that names something: empty text counts as not set. */
+const readName = (stored: unknown): string | null | undefined =>
+  stored === null ? null : typeof stored === "string" ? stored || null : undefined
+
+/** The name of an entity, chosen from those defined (Phase 5, ADR 0011). */
+export function entityName(meta: Meta): Setting<string | null> {
+  return { kind: "entity", ...meta, default: null, parse: readName }
+}
+
+/** The name of a reference list, chosen from those defined. */
+export function referenceListName(meta: Meta): Setting<string | null> {
+  return { kind: "reference-list", ...meta, default: null, parse: readName }
+}
+
+/** The id of a form, chosen from those that exist. */
+export function formId(meta: Meta): Setting<string | null> {
+  return { kind: "form", ...meta, default: null, parse: readName }
+}
+
+/** A column of a table: the property it shows, and its header when not the property's own name. */
+export type Column = { readonly property: string; readonly header?: string }
+
+function isColumn(value: unknown): value is Column {
+  return (
+    isRecord(value) &&
+    typeof value.property === "string" &&
+    value.property !== "" &&
+    (value.header === undefined || typeof value.header === "string") &&
+    Object.keys(value).every((key) => key === "property" || key === "header")
+  )
+}
+
+/**
+ * The columns of a table, in order: properties of the entity `entity` names.
+ * An empty list means "every property, in the entity's own order". No
+ * property twice.
+ */
+export function columns(
+  meta: Meta & { entity: (settings: ResolvedSettings) => string | null },
+): Setting<readonly Column[]> {
+  const { entity, ...rest } = meta
+  return {
+    kind: "columns",
+    ...rest,
+    default: [],
+    entityFrom: entity,
+    parse: (stored) => {
+      if (!Array.isArray(stored) || !stored.every(isColumn)) return undefined
+      const names = new Set(stored.map((column) => column.property))
+      return names.size === stored.length ? stored : undefined
     },
   }
 }

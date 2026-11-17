@@ -4,10 +4,14 @@ import { card } from "./components/card"
 import { checkbox } from "./components/checkbox"
 import { columns } from "./components/columns"
 import { container } from "./components/container"
+import { dataTable } from "./components/data-table"
 import { datePicker } from "./components/date-picker"
+import { entityPicker } from "./components/entity-picker"
 import { numberField } from "./components/number-field"
 import { radioGroup } from "./components/radio-group"
+import { referenceListSelect } from "./components/reference-list-select"
 import { select } from "./components/select"
+import { statusTag } from "./components/status-tag"
 import { switchField } from "./components/switch"
 import { tabs } from "./components/tabs"
 import { text } from "./components/text"
@@ -28,6 +32,9 @@ export const registry = createRegistry([
   switchField,
   datePicker,
   radioGroup,
+  referenceListSelect,
+  entityPicker,
+  dataTable,
   button,
   container,
   columns,
@@ -35,4 +42,5 @@ export const registry = createRegistry([
   tabs,
   text,
   alert,
+  statusTag,
 ])

@@ -6,12 +6,13 @@ use axum::extract::{DefaultBodyLimit, OriginalUri, State};
 use axum::http::{Method, StatusCode};
 use axum::routing::get;
 use axum::{Json, Router};
-use contracts::{APP_NAME, AppInfo, DbStatus, HealthResponse, MAX_REQUEST_BYTES};
+use contracts::{APP_NAME, AppInfo, DbStatus, ErrorDetail, HealthResponse, MAX_REQUEST_BYTES};
 use serde_json::{Map, Value};
+use sqlx::{Sqlite, SqlitePool, Transaction};
 
 use crate::error::AppError;
 use crate::router::AppState;
-use crate::{build_info, db, forms, themes};
+use crate::{build_info, data, db, entities, forms, themes};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -19,6 +20,8 @@ pub fn router() -> Router<AppState> {
         .route("/info", get(info))
         .merge(forms::router())
         .merge(themes::router())
+        .merge(entities::router())
+        .merge(data::router())
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
         // The limit is a shared constant, so the designer knows it too.
@@ -85,4 +88,35 @@ pub(crate) fn based_on_revision(body: &Map<String, Value>) -> Result<u32, AppErr
                 "The request needs \"revision\": the revision number this change was based on.",
             )
         })
+}
+
+/// Where and why typed deserialisation of a request failed, as a located
+/// problem. serde's messages start in lower case and have no full stop.
+pub(crate) fn parse_problem(error: &serde_path_to_error::Error<serde_json::Error>) -> ErrorDetail {
+    let path = error.path().to_string();
+    let path = if path == "." { String::new() } else { path };
+    let message = error.inner().to_string();
+    let mut chars = message.chars();
+    let mut sentence: String = match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    };
+    if !sentence.ends_with('.') {
+        sentence.push('.');
+    }
+    ErrorDetail::new(path, sentence)
+}
+
+/// A transaction for reading: every statement in it sees the database as it
+/// was when the first one ran, so a definition and the rows read with it
+/// always belong together.
+pub(crate) async fn reading(pool: &SqlitePool) -> Result<Transaction<'static, Sqlite>, AppError> {
+    Ok(pool.begin().await?)
+}
+
+/// A transaction for writing. It takes the write lock at once, so what it
+/// checks (a revision, that a referenced row exists, that no row would lose a
+/// value) still holds when it writes.
+pub(crate) async fn writing(pool: &SqlitePool) -> Result<Transaction<'static, Sqlite>, AppError> {
+    Ok(pool.begin_with("BEGIN IMMEDIATE").await?)
 }
